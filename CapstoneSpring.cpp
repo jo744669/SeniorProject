@@ -13,11 +13,11 @@ int currentScene; //global variable to hold what scene user is at
 int main()
 {
     //Find coordinates of both displays - laptop and monitor
-    int wDisplay1 = int(3072 / 2);    
-    int hDisplay1 = int(1920 / 2);
+    int wDisplay1 = int(1920 / 2);    
+    int hDisplay1 = int(1080 / 2);
     int wDisplay2 = int(1920 / 2);    
     int hDisplay2 = int(1080 / 2);
-    currentScene = 0; //keeps track pof what scene user is currently at
+    currentScene = 0; //keeps track of what scene user is currently at
 
     //Calibration Step 1 - do this each time for each image after setting up the camera
     /*
@@ -47,8 +47,9 @@ int main()
     int xSpringKey = 0; int ySpringKey = 0;
     Vec3b winterKeyColor = { 0, 0, 0 }; Vec3b springKeyColor = { 0, 0, 0 };
 
-    VideoCapture cam = VideoCapture(2); //assign to the correct port
+    VideoCapture cam = VideoCapture(1); //assign to the correct port
     namedWindow("camOut");
+    setWindowProperty("camOut", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     int image_counter = 0;
     bool returned; //boolean to check that an image was returned from the camera
     Mat frame;
@@ -66,6 +67,9 @@ int main()
             break;
         }
         imshow("camOut", frame);
+
+        //check what scene currently at to know what decisions are the choices
+        //detect decisions accordingly
         if (currentScene == 0)
         {
             decision = detect_decision(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
@@ -127,8 +131,11 @@ int main()
         }
         else if (k % 256 == 32)
         {
-            //space is pressed
-            //IMPLEMENT THIS
+            //space is pressed - save current frme from camera view
+            string img_name = "frame_" + image_counter;
+            imwrite(img_name, frame);
+            cout << "space pressed and image writter" << endl;
+            image_counter++;
         }
     }
 
@@ -154,7 +161,7 @@ int calibrate(int xOne, int yOne, int xTwo, int yTwo, Vec3b oneColor, Vec3b twoC
 
 /*
 * This method will be used to find and display the image the program should be looking for.
-* This method should be called in the beginning for the start scene and for the pause scenes when waiting for user"s decision
+* This method should be called in the beginning for the start scene and for the pause scenes when waiting for user's decision
 * @args imageName = name of image file to look for with .jpg extension
 * @args wDisplay1
 */
@@ -293,10 +300,12 @@ int detect_decision(int xOne, int yOne, int xTwo, int yTwo, Vec3b oneColor, Vec3
     }
     //UPDATE SCENE IN HERE IF CHANGES
 
-    return 0; //only gets here if no option chosenend exits if statement for some reason
+    return 0; //only gets here if no option chosen and exits if statement for some reason
 }
 
 //list all cameras since there are more than 1 - webcam + offboard
+//only need to run this method once at very beginning
+//my computer: port 0 is webcam and port 1 is external camera
 int list_ports() 
 {
     //create arrays of size bigger than possible number of ports
