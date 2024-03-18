@@ -68,6 +68,23 @@ int main()
         }
         imshow("camOut", frame);
 
+        //calibrate automatically based on scene - only calibrate if it hasn't been done yet before
+        if (currentScene == 0 && vector_is_empty(knobLeftColor) && vector_is_empty(knobRightColor))
+        {
+            calibrate(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
+            cout << "calibrated scene " << currentScene << endl;
+        }
+        else if (currentScene == 1 && vector_is_empty(chrysColor) && vector_is_empty(violetColor))
+        {
+            calibrate(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
+            cout << "calibrated scene " << currentScene << endl;
+        }
+        else if (currentScene == 2 && vector_is_empty(winterKeyColor) && vector_is_empty(springKeyColor))
+        {
+            calibrate(xWinterKey, yWinterKey, xSpringKey, ySpringKey, winterKeyColor, springKeyColor, frame);
+            cout << "calibrated scene " << currentScene << endl;
+        }
+
         //check what scene currently at to know what decisions are the choices
         //detect decisions accordingly
         if (currentScene == 0)
@@ -86,7 +103,7 @@ int main()
         //check if scene needs to change and call playVideo method for correct video
         if (decision != 0 && decision != -1)
         {
-            //change these scene names based on what the file is truly named
+            //CHANGE THESE SCENE NAMES BASED ON FILE NAMES
             if (currentScene == 0)
             {
                 if (decision == 1) { playVideo("Scene1A"); }
@@ -114,8 +131,7 @@ int main()
         }
         else if (k == 'c' || k == 'C')
         {
-            //run calibration step 2
-            //initial thought - this may not work doing all at once
+            //run calibration step 2 - this is here to do the calibration manually but it is automatically done in the main loop
             if (currentScene == 0)
             {
                 calibrate(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
@@ -153,10 +169,32 @@ int main()
 /*
 * This method will be used to find the colors of the different decision options
 */
-int calibrate(int xOne, int yOne, int xTwo, int yTwo, Vec3b oneColor, Vec3b twoColor, Mat image)
+int calibrate(int xOne, int yOne, int xTwo, int yTwo, Vec3b& oneColor, Vec3b& twoColor, Mat image)
 {
-    //IMPLEMENT THIS METHOD
+    //uses reference variables for  colors to edit the color variables in main method without returning multiple values
+    //assigns RGB value at location of decision to color vector
+    oneColor = image.at<Vec3b>(yOne, xOne);
+    twoColor = image.at<Vec3b>(yTwo, xTwo);
+    cout << "calibrate: " << oneColor << " and " << twoColor << endl;
     return 1;
+}
+
+/*
+* This method checks if the vector is empty so that this code does not take up space in the main method each time it needs to be used
+*/
+bool vector_is_empty(Vec3b vector)
+{
+    if (vector[0] == 0)
+    {
+        if (vector[1] == 0)
+        {
+            if (vector[2] == 0)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /*
