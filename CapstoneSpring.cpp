@@ -106,18 +106,42 @@ int main()
             //CHANGE THESE SCENE NAMES BASED ON FILE NAMES
             if (currentScene == 0)
             {
-                if (decision == 1) { playVideo("Scene1A"); }
-                if (decision == 2) { playVideo("Scene1B"); }
+                if (decision == 1) 
+                { 
+                    currentScene = 1;
+                    playVideo("Scene1A", wDisplay1); 
+                }
+                if (decision == 2) 
+                {
+                    currentScene = 2;
+                    playVideo("Scene1B", wDisplay1); 
+                }
             }
             if (currentScene == 1)
             {
-                if (decision == 1) { playVideo("Scene2A"); }
-                if (decision == 2) { playVideo("Scene2B"); }
+                if (decision == 1) 
+                { 
+                    currentScene = 3;
+                    playVideo("Scene2A", wDisplay1); 
+                }
+                if (decision == 2) 
+                { 
+                    currentScene = 4;
+                    playVideo("Scene2B", wDisplay1);
+                }
             }
             if (currentScene == 2)
             {
-                if (decision == 1) { playVideo("Scene2C"); }
-                if (decision == 2) { playVideo("Scene2D"); }
+                if (decision == 1) 
+                { 
+                    currentScene = 5;
+                    playVideo("Scene2C", wDisplay1); 
+                }
+                if (decision == 2) 
+                { 
+                    currentScene = 6;
+                    playVideo("Scene2D", wDisplay1); 
+                }
             }
         }
 
@@ -264,6 +288,7 @@ int playVideo(String videoName, int wDisplay1)
     delete &frame;
     cap.release();
     return 0;
+    //DO I NEED TO CALL GET IMAGE VARIABLE HERE
 }
 
 /*
@@ -276,7 +301,7 @@ int playVideo(String videoName, int wDisplay1)
 int detect_decision(int xOne, int yOne, int xTwo, int yTwo, Vec3b oneColor, Vec3b twoColor, Mat image)
 {
     //check to make sure you remembered to do calibration step 2
-    if ((oneColor[0] == 0 && oneColor[1] && 0 && oneColor[2] == 0) || (twoColor[0] == 0 && twoColor[1] == 0 && twoColor[2] == 0))
+    if (vector_is_empty(oneColor) || vector_is_empty(twoColor))
     {
         cout << "not calibrated" << endl;
         return -1;
@@ -340,7 +365,6 @@ int detect_decision(int xOne, int yOne, int xTwo, int yTwo, Vec3b oneColor, Vec3
     {
         return 0;
     }
-    //UPDATE SCENE IN HERE IF CHANGES
 
     return 0; //only gets here if no option chosen and exits if statement for some reason
 }
