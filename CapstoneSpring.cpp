@@ -206,7 +206,7 @@ bool vector_is_empty(Vec3b vector)
 int getImage(String imageName, int wDisplay1)
 {
     //import image from file folder 
-    string image_path = samples::findFile(imageName);
+    string image_path = samples::findFile(imageName); //FIX THIS FILE PATH
     Mat img = imread(image_path, IMREAD_COLOR);
     cout << img.size << endl;
 
@@ -232,10 +232,8 @@ int getImage(String imageName, int wDisplay1)
 
 /*
 * This method will be used to display the video of the correct scene 
-* PROBABLY NEED TO FIX THIS METHOD TO MATCH DISPLAYING IMAGE
-* THIS METHOD IS A WORK IN PROGRESS
 */
-int playVideo(String videoName)
+int playVideo(String videoName, int wDisplay1)
 {
     VideoCapture cap(videoName);
     // Check if camera opened successfully
@@ -244,9 +242,14 @@ int playVideo(String videoName)
         return -1;
     }
 
-    while (1) {
+    //display video to the correct window
+    namedWindow("video", WINDOW_NORMAL);
+    moveWindow("video", wDisplay1, 0); //position display
+    setWindowProperty("video", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
+    Mat frame;
 
-        Mat frame;
+    while (1) 
+    {
         // Capture frame-by-frame
         cap >> frame;
 
@@ -255,9 +258,10 @@ int playVideo(String videoName)
             break;
 
         // Display the resulting frame
-        imshow("Frame", frame);
+        imshow("video", frame);
     }
 
+    delete &frame;
     cap.release();
     return 0;
 }
