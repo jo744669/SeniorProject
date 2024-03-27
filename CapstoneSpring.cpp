@@ -43,75 +43,6 @@ bool vector_is_empty(Vec3b vector)
 }
 
 /*
-* This method will be used to find and display the image the program should be looking for.
-* This method should be called in the beginning for the start scene and for the pause scenes when waiting for user's decision
-* @args imageName = name of image file to look for with .jpg extension
-* @args wDisplay1
-*/
-int getImage(String imageName, int wDisplay1)
-{
-    //import image from file folder 
-    Mat img = imread(imageName, IMREAD_COLOR);
-    cout << img.size << endl;
-
-    //set height and width to cols and rows respectively
-    int hStory = img.cols;
-    int wStory = img.rows;
-
-    if (img.empty())
-    {
-        cout << "Could not read the image: " << imageName << endl;
-        return -1;
-    }
-
-    //display the image to the correct window
-    namedWindow("story", WINDOW_NORMAL);
-    moveWindow("story", wDisplay1, 0); //position display
-    setWindowProperty("story", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-    imshow("story", img); //displays the image
-
-    delete& img; //delete to avoid memory leaks
-    return 0;
-}
-
-/*
-* This method will be used to display the video of the correct scene
-*/
-int playVideo(String videoName, int wDisplay1)
-{
-    VideoCapture cap(videoName);
-    // Check if camera opened successfully
-    if (!cap.isOpened()) {
-        cout << "Error opening video stream or file" << endl;
-        return -1;
-    }
-
-    //display video to the correct window
-    namedWindow("video", WINDOW_NORMAL);
-    moveWindow("video", wDisplay1, 0); //position display
-    setWindowProperty("video", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-    Mat frame;
-
-    while (1)
-    {
-        // Capture frame-by-frame
-        cap >> frame;
-
-        // If the frame is empty, break immediately
-        if (frame.empty())
-            break;
-
-        // Display the resulting frame
-        imshow("video", frame);
-    }
-
-    delete& frame;
-    cap.release();
-    return 0;
-    //DO I NEED TO CALL GET IMAGE VARIABLE HERE
-}
-
-/*
 * This method will be used to detect if the user has made their decision in a given scene
 * @args xOne, yOne - the x and y coordinates of option 1
 * @args xTwo, yTwo - the x and y coordinates of option 2
@@ -250,12 +181,12 @@ int list_ports()
 
 int main()
 {
-    //Find coordinates of both displays - laptop and monitor
-    int wDisplay1 = int(1920 / 2);    
-    int hDisplay1 = int(1080 / 2);
-    int wDisplay2 = int(1920 / 2);    
-    int hDisplay2 = int(1080 / 2);
-    currentScene = 0; //keeps track of what scene user is currently at
+    //Find coordinates of both displays - laptop (1) and monitor (2)
+    int wDisplay1 = 1281;    //1920 / 2
+    int hDisplay1 = 0;    //1080 / 2
+    int wDisplay2 = 0;    
+    int hDisplay2 = 0;
+    currentScene = -1; //keeps track of what scene user is currently at
 
     //Calibration Step 1 - do this each time for each image after setting up the camera
     /*
@@ -292,6 +223,12 @@ int main()
     bool returned; //boolean to check that an image was returned from the camera
     Mat frame;
     int decision;
+    String video;
+    int iteration = 1;
+    namedWindow("story", WINDOW_NORMAL);
+    moveWindow("story", wDisplay1, 0); //position display
+    setWindowProperty("story", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
+    bool playVideo = false;
     
     /*
     * This loop acts as the main loop for detecting decisions, displaying images, and playing videos
@@ -306,87 +243,141 @@ int main()
         }
         imshow("camOut", frame);
 
+        //display start scene
+        if (currentScene == -1)
+        {
+            //import image from file folder 
+            Mat img = imread("C:/Users/jilli/images/Start_A_0001.jpg");
+            cout << img.size << endl;
+
+            //set height and width to cols and rows respectively
+            int hStory = img.cols;
+            int wStory = img.rows;
+
+            if (img.empty())
+            {
+                cout << "Could not read the image: " << "Start_A_0001.jpg" << endl;
+                return -1;
+            }
+
+            imshow("story", img); //displays the image
+            //waitKey(0);
+        }
+
         //FOR CALIBRATION STEP 1
-        //getImage("Start_A_0001.jpg", wDisplay1);
-        //if (image_counter == 1) { getImage("Scene 1A Flowers_0015.jpg", wDisplay1); }
-        //if (image_counter == 2) { getImage("Scene 1B_0015.jpg", wDisplay1); }
+        //while (image_counter == 1) { getImage("Scene 1A Flowers_0015.jpg", wDisplay1); }
+        //while (image_counter == 2) { getImage("Scene 1B_0015.jpg", wDisplay1); }
 
-        //calibrate automatically based on scene - only calibrate if it hasn't been done yet before
-        if (currentScene == 0 && vector_is_empty(knobLeftColor) && vector_is_empty(knobRightColor))
-        {
-            calibrate(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
-            cout << "calibrated scene " << currentScene << endl;
-        }
-        else if (currentScene == 1 && vector_is_empty(chrysColor) && vector_is_empty(violetColor))
-        {
-            calibrate(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
-            cout << "calibrated scene " << currentScene << endl;
-        }
-        else if (currentScene == 2 && vector_is_empty(winterKeyColor) && vector_is_empty(springKeyColor))
-        {
-            calibrate(xWinterKey, yWinterKey, xSpringKey, ySpringKey, winterKeyColor, springKeyColor, frame);
-            cout << "calibrated scene " << currentScene << endl;
-        }
+        ////calibrate automatically based on scene - only calibrate if it hasn't been done yet before
+        //if (currentScene == 0 && vector_is_empty(knobLeftColor) && vector_is_empty(knobRightColor))
+        //{
+        //    calibrate(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
+        //    cout << "calibrated scene " << currentScene << endl;
+        //}
+        //else if (currentScene == 1 && vector_is_empty(chrysColor) && vector_is_empty(violetColor))
+        //{
+        //    calibrate(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
+        //    cout << "calibrated scene " << currentScene << endl;
+        //}
+        //else if (currentScene == 2 && vector_is_empty(winterKeyColor) && vector_is_empty(springKeyColor))
+        //{
+        //    calibrate(xWinterKey, yWinterKey, xSpringKey, ySpringKey, winterKeyColor, springKeyColor, frame);
+        //    cout << "calibrated scene " << currentScene << endl;
+        //}
 
-        //check what scene currently at to know what decisions are the choices
-        //detect decisions accordingly
-        if (currentScene == 0)
+        ////check what scene currently at to know what decisions are the choices
+        ////detect decisions accordingly
+        //if (currentScene == 0)
+        //{
+        //    decision = detect_decision(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
+        //}
+        //else if (currentScene == 1)
+        //{
+        //    decision = detect_decision(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
+        //}
+        //else if (currentScene == 2)
+        //{
+        //    decision = detect_decision(xWinterKey, yWinterKey, xSpringKey, ySpringKey, winterKeyColor, springKeyColor, frame);
+        //}
+        //
+        ////check if scene needs to change and call playVideo method for correct video
+        //if (decision != 0 && decision != -1)
+        //{
+        //    //CHANGE THESE SCENE NAMES BASED ON FILE NAMES
+        //    if (currentScene == 0)
+        //    {
+        //        if (decision == 1) 
+        //        { 
+        //            currentScene = 1;
+        //            video = "Scene 1A";
+        //        }
+        //        if (decision == 2) 
+        //        {
+        //            currentScene = 2;
+        //            video = "Scene1B"; 
+        //        }
+        //    }
+        //    if (currentScene == 1)
+        //    {
+        //        if (decision == 1) 
+        //        { 
+        //            currentScene = 3;
+        //            video = Scene2A"; 
+        //        }
+        //        if (decision == 2) 
+        //        { 
+        //            currentScene = 4;
+        //            video = "Scene2B";
+        //        }
+        //    }
+        //    if (currentScene == 2)
+        //    {
+        //        if (decision == 1) 
+        //        { 
+        //            currentScene = 5;
+        //            video = "Scene2C"; 
+        //        }
+        //        if (decision == 2) 
+        //        { 
+        //            currentScene = 6;
+        //            video = "Scene2D"; 
+        //        }
+        //    }
+        // playVideo = true;
+        //}
+
+        if (playVideo == true)
         {
-            decision = detect_decision(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
-        }
-        else if (currentScene == 1)
-        {
-            decision = detect_decision(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
-        }
-        else if (currentScene == 2)
-        {
-            decision = detect_decision(xWinterKey, yWinterKey, xSpringKey, ySpringKey, winterKeyColor, springKeyColor, frame);
+            VideoCapture cap(video);
+            // Check if camera opened successfully
+            if (!cap.isOpened()) {
+                cout << "Error opening video stream or file" << endl;
+                return -1;
+            }
+
+            //display video to the correct window
+            namedWindow("video", WINDOW_NORMAL);
+            moveWindow("video", wDisplay1, 0); //position display
+            setWindowProperty("video", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
+            Mat frame;
+
+            while (1)
+            {
+                // Capture frame-by-frame
+                cap >> frame;
+
+                // If the frame is empty, break immediately
+                if (frame.empty())
+                    break;
+
+                // Display the resulting frame
+                imshow("video", frame);
+            }
+
+            delete& frame;
+            cap.release();
         }
         
-        //check if scene needs to change and call playVideo method for correct video
-        if (decision != 0 && decision != -1)
-        {
-            //CHANGE THESE SCENE NAMES BASED ON FILE NAMES
-            if (currentScene == 0)
-            {
-                if (decision == 1) 
-                { 
-                    currentScene = 1;
-                    playVideo("Scene1A", wDisplay1); 
-                }
-                if (decision == 2) 
-                {
-                    currentScene = 2;
-                    playVideo("Scene1B", wDisplay1); 
-                }
-            }
-            if (currentScene == 1)
-            {
-                if (decision == 1) 
-                { 
-                    currentScene = 3;
-                    playVideo("Scene2A", wDisplay1); 
-                }
-                if (decision == 2) 
-                { 
-                    currentScene = 4;
-                    playVideo("Scene2B", wDisplay1);
-                }
-            }
-            if (currentScene == 2)
-            {
-                if (decision == 1) 
-                { 
-                    currentScene = 5;
-                    playVideo("Scene2C", wDisplay1); 
-                }
-                if (decision == 2) 
-                { 
-                    currentScene = 6;
-                    playVideo("Scene2D", wDisplay1); 
-                }
-            }
-        }
 
         //setting up key strokes to do different actions
         int k = waitKey(1) & 0xff;
@@ -423,12 +414,12 @@ int main()
     }
 
     //avoid memory leaks at the very end
-    delete &knobLeftColor;
+    /*delete &knobLeftColor;
     delete &knobRightColor;
     delete &chrysColor;
     delete &violetColor;
     delete &winterKeyColor;
-    delete &springKeyColor;
+    delete &springKeyColor;*/
     cam.release();
     destroyAllWindows();
 }

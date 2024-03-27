@@ -110,7 +110,7 @@
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\opencv-4.9.0-windows\opencv\build\x64\vc16\lib;C:\opencv-4.9.0-windows\opencv\build\x64\vc16\lib\</AdditionalLibraryDirectories>
-      <AdditionalDependencies>C:\opencv-4.9.0-windows\opencv\build\x64\vc16\lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opencv_world490d.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -128,7 +128,8 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>C:\opencv-4.9.0-windows\opencv\build\x64\vc16\lib;C:\opencv-4.9.0-windows\opencv\build\x64\vc16\lib;C:\opencv-4.9.0-windows\opencv\build\x64\vc16\lib\</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>C:\opencv-4.9.0-windows\opencv\build\x64\vc16\lib;C:\opencv-4.9.0-windows\opencv\build\x64\vc16\lib\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opencv_world490.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
