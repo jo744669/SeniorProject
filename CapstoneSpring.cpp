@@ -8,8 +8,6 @@
 using namespace cv;
 using namespace std;
 
-int currentScene; //global variable to hold what scene user is at
-
 
 /*
 * This method will be used to find the colors of the different decision options
@@ -186,7 +184,7 @@ int main()
     int hDisplay1 = 0;    //1080 / 2
     int wDisplay2 = 0;    
     int hDisplay2 = 0;
-    currentScene = -1; //keeps track of what scene user is currently at
+    int currentScene = 0; //keeps track of what scene user is currently at
 
     //Calibration Step 1 - do this each time for each image after setting up the camera
     /*
@@ -202,8 +200,8 @@ int main()
     */
 
     //Start scene
-    int xKnobRight = 396; int yKnobRight = 221;
-    int xKnobLeft = 209; int yKnobLeft = 219;
+    int xKnobRight = 375; int yKnobRight = 235;
+    int xKnobLeft = 242; int yKnobLeft = 235;
     Vec3b knobLeftColor = { 0, 0, 0 }; Vec3b knobRightColor = { 0, 0, 0 };
 
     //Scene 1A
@@ -219,17 +217,21 @@ int main()
     VideoCapture cam = VideoCapture(1); //assign to the correct port
     namedWindow("camOut");
     setWindowProperty("camOut", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-    int image_counter = 0;
+    int image_counter = 0; //number of images from the webcam saved to the computer
     bool returned; //boolean to check that an image was returned from the camera
-    Mat frame;
-    int decision;
-    String video;
+    Mat frame; //frame from the webcam
+    Mat vidFrame; //frame from when play a video
+    int decision; //holds decision of the user
+    String video; //name of video to be played
     int iteration = 1;
     namedWindow("story", WINDOW_NORMAL);
     moveWindow("story", wDisplay1, 0); //position display
     setWindowProperty("story", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     bool playVideo = false;
+    String imageName;
     
+    //list_ports(); //FOR TESTING ONLY
+
     /*
     * This loop acts as the main loop for detecting decisions, displaying images, and playing videos
     */
@@ -243,37 +245,41 @@ int main()
         }
         imshow("camOut", frame);
 
-        //display start scene
-        if (currentScene == -1)
+        //assign image name based on what scene we are at
+        if (currentScene == 0) { imageName = "C:/Users/jilli/images/Start_A_0001.jpg"; } //start scene
+        if (currentScene == 1) { imageName = "Scene 1A Flowers_0001.jpg"; } //scene 1A
+        if (currentScene == 2) { imageName = "Scene 1B_0001.jpg"; } //scene 1B
+        if (currentScene == 3) { imageName = "Scene 2A_0001.jpg"; } //scene 2A
+        if (currentScene == 4) { imageName = "Scene 2B_0001.jpg"; } //scene 2B
+        if (currentScene == 5) { imageName = "Scene 2C_0001.jpg"; } //scene 2C
+        if (currentScene == 6) { imageName = "Scene 2D_0001.jpg"; } //scene 2D
+
+        //display the scene
+        Mat img = imread(imageName); //import image from file folder 
+        //cout << img.size << endl; //FOR TESTING
+
+        //set height and width to cols and rows respectively
+        int hStory = img.cols;
+        int wStory = img.rows;
+
+        if (img.empty())
         {
-            //import image from file folder 
-            Mat img = imread("C:/Users/jilli/images/Start_A_0001.jpg");
-            cout << img.size << endl;
-
-            //set height and width to cols and rows respectively
-            int hStory = img.cols;
-            int wStory = img.rows;
-
-            if (img.empty())
-            {
-                cout << "Could not read the image: " << "Start_A_0001.jpg" << endl;
-                return -1;
-            }
-
-            imshow("story", img); //displays the image
-            //waitKey(0);
+            cout << "Could not read the image: " << "Start_A_0001.jpg" << endl;
+            return -1;
         }
+
+        imshow("story", img); 
 
         //FOR CALIBRATION STEP 1
         //while (image_counter == 1) { getImage("Scene 1A Flowers_0015.jpg", wDisplay1); }
         //while (image_counter == 2) { getImage("Scene 1B_0015.jpg", wDisplay1); }
 
-        ////calibrate automatically based on scene - only calibrate if it hasn't been done yet before
-        //if (currentScene == 0 && vector_is_empty(knobLeftColor) && vector_is_empty(knobRightColor))
-        //{
-        //    calibrate(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
-        //    cout << "calibrated scene " << currentScene << endl;
-        //}
+        //calibrate automatically based on scene - only calibrate if it hasn't been done yet before
+        if (currentScene == 0 && vector_is_empty(knobLeftColor) && vector_is_empty(knobRightColor))
+        {
+            calibrate(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
+            cout << "calibrated scene " << currentScene << endl;
+        }
         //else if (currentScene == 1 && vector_is_empty(chrysColor) && vector_is_empty(violetColor))
         //{
         //    calibrate(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
@@ -346,37 +352,37 @@ int main()
         // playVideo = true;
         //}
 
-        if (playVideo == true)
-        {
-            VideoCapture cap(video);
-            // Check if camera opened successfully
-            if (!cap.isOpened()) {
-                cout << "Error opening video stream or file" << endl;
-                return -1;
-            }
+        //if (playVideo == true)
+        //{
+        //    VideoCapture cap(video);
+        //    // Check if camera opened successfully
+        //    if (!cap.isOpened()) {
+        //        cout << "Error opening video stream or file" << endl;
+        //        return -1;
+        //    }
 
-            //display video to the correct window
-            namedWindow("video", WINDOW_NORMAL);
-            moveWindow("video", wDisplay1, 0); //position display
-            setWindowProperty("video", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-            Mat frame;
+        //    //display video to the correct window
+        //    namedWindow("video", WINDOW_NORMAL);
+        //    moveWindow("video", wDisplay1, 0); //position display
+        //    setWindowProperty("video", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
+        //    Mat frame;
 
-            while (1)
-            {
-                // Capture frame-by-frame
-                cap >> frame;
+        //    while (1)
+        //    {
+        //        // Capture frame-by-frame
+        //        cap >> vidFrame;
 
-                // If the frame is empty, break immediately
-                if (frame.empty())
-                    break;
+        //        // If the frame is empty, break immediately
+        //        if (vidFrame.empty())
+        //            break;
 
-                // Display the resulting frame
-                imshow("video", frame);
-            }
+        //        // Display the resulting frame
+        //        imshow("video", vidFrame);
+        //    }
 
-            delete& frame;
-            cap.release();
-        }
+        //    delete& frame;
+        //    cap.release();
+        //}
         
 
         //setting up key strokes to do different actions
@@ -406,9 +412,9 @@ int main()
         else if (k % 256 == 32)
         {
             //space is pressed - save current frme from camera view
-            string img_name = "frame_" + image_counter;
+            string img_name = "C:/Users/jilli/images/savedImage.jpg";
             imwrite(img_name, frame);
-            cout << "space pressed and image writter" << endl;
+            cout << "space pressed and image written" << endl;
             image_counter++;
         }
     }
