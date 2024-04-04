@@ -9,20 +9,6 @@
 using namespace cv;
 using namespace std;
 
-
-/*
-* This method will be used to find the colors of the different decision options
-*/
-int calibrate(int xOne, int yOne, int xTwo, int yTwo, Vec3b& oneColor, Vec3b& twoColor, Mat image)
-{
-    //uses reference variables for  colors to edit the color variables in main method without returning multiple values
-    //assigns RGB value at location of decision to color vector
-    oneColor = image.at<Vec3b>(yOne, xOne);
-    twoColor = image.at<Vec3b>(yTwo, xTwo);
-    cout << "calibrate: " << oneColor << " and " << twoColor << endl;
-    return 1;
-}
-
 /*
 * This method checks if the vector is empty so that this code does not take up space in the main method each time it needs to be used
 */
@@ -155,7 +141,9 @@ int main()
     Vec3b tmp1;
     Vec3b tmp2;
     Vec3b d;
-    int xOne; int yOne; int xTwo; int yTwo; Vec3b oneColor; Vec3b twoColor;
+    int xOne; int yOne; int xTwo; int yTwo; 
+    Vec3b& oneColor = knobLeftColor; 
+    Vec3b& twoColor = knobRightColor;
     bool playVideo = false;
     int currentScene = 0;
     int difference = 0;
@@ -386,16 +374,35 @@ int main()
             //run calibration step 2 - this is here to do the calibration manually but it is automatically done in the main loop
             if (currentScene == 0)
             {
-                calibrate(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
+                xOne = xKnobLeft;
+                yOne = yKnobLeft;
+                xTwo = xKnobRight;
+                yTwo = yKnobRight;
+                oneColor = knobLeftColor;
+                twoColor = knobRightColor;
             }
-            if (currentScene == 1)
+            else if (currentScene == 1)
             {
-                calibrate(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
+                xOne = xViolet;
+                yOne = yViolet;
+                xTwo = xChrys;
+                yTwo = yChrys;
+                oneColor = violetColor;
+                twoColor = chrysColor;
             }
-            if (currentScene == 2)
+            else if (currentScene == 2)
             {
-                calibrate(xWinterKey, yWinterKey, xSpringKey, ySpringKey, winterKeyColor, springKeyColor, frame);
+                xOne = xWinterKey;
+                yOne = yWinterKey;
+                xTwo = xSpringKey;
+                yTwo = ySpringKey;
+                oneColor = winterKeyColor;
+                twoColor = springKeyColor;
             }
+            oneColor = frame.at<Vec3b>(yOne, xOne);
+            twoColor = frame.at<Vec3b>(yTwo, xTwo);
+            cout << "calibrate: " << oneColor << " and " << twoColor << endl;
+            cout << "knob left " << knobLeftColor << " and knob right " << knobRightColor << endl; //FIX THIS
         }
         else if (k % 256 == 32)
         {
