@@ -2,6 +2,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/highgui.hpp>
+#include <Windows.h>
 
 #include <iostream>
 
@@ -38,84 +39,6 @@ bool vector_is_empty(Vec3b vector)
         }
     }
     return false;
-}
-
-/*
-* This method will be used to detect if the user has made their decision in a given scene
-* @args xOne, yOne - the x and y coordinates of option 1
-* @args xTwo, yTwo - the x and y coordinates of option 2
-* @args oneColor, twoColor - the original colors of option 1 and 2 determined in calibration step 2
-* @args image - the current image displayed on the screen
-*/
-int detect_decision(int xOne, int yOne, int xTwo, int yTwo, Vec3b oneColor, Vec3b twoColor, Mat image)
-{
-    //check to make sure you remembered to do calibration step 2
-    if (vector_is_empty(oneColor) || vector_is_empty(twoColor))
-    {
-        cout << "not calibrated" << endl;
-        return -1;
-    }
-
-    //assign variables needed to check for color disparities
-    Vec3b& tmp1 = image.at<Vec3b>(yOne, xOne);
-    Vec3b& tmp2 = image.at<Vec3b>(yTwo, xTwo);
-    int threshold = 50;
-    bool selected1 = false;
-    bool selected2 = false;
-
-    //Checking for color disparities with option 1
-    Vec3b d = oneColor - tmp1;
-    //multiply each element by itself individually
-    d[0] = d[0] * d[0];
-    d[1] = d[1] * d[1];
-    d[2] = d[2] * d[2];
-
-    int difference = d[0] + d[1] + d[2]; //calculate total difference by adding RGB values together
-
-    if (difference > threshold)
-    {
-        selected1 = true;
-    }
-
-    //Checking for color disparities with option 2
-    d = twoColor - tmp1;
-    //multiply each element by itself individually
-    d[0] = d[0] * d[0];
-    d[1] = d[1] * d[1];
-    d[2] = d[2] * d[2];
-
-    difference = d[0] + d[1] + d[2];
-    if (difference > threshold)
-    {
-        selected2 = true;
-    }
-
-    //delete vectors to avoid memory leaks - before checking for decision or would never be deleted when decision is found
-    delete& tmp1;
-    delete& tmp2;
-    delete& d;
-
-    if (selected1 && selected2)
-    {
-        cout << "You must only choose 1 choice" << endl;
-        return -1;
-    }
-    else if (selected1)
-    {
-        cout << "Option 1 was chosen" << endl;
-        return 1;
-    }
-    else if (selected2)
-    {
-        cout << "Option 2 was chosen" << endl;
-        return 2;
-    }
-    else
-    {
-        return 0;
-    }
-
-    return 0; //only gets here if no option chosen and exits if statement for some reason
 }
 
 //list all cameras since there are more than 1 - webcam + offboard
@@ -184,8 +107,7 @@ int main()
     int hDisplay1 = 0;    //1080 / 2
     int wDisplay2 = 0;    
     int hDisplay2 = 0;
-    int currentScene = 0; //keeps track of what scene user is currently at
-
+    
     //Calibration Step 1 - do this each time for each image after setting up the camera
     /*
     * Run this program
@@ -200,9 +122,9 @@ int main()
     */
 
     //Start scene
-    int xKnobRight = 375; int yKnobRight = 235;
-    int xKnobLeft = 242; int yKnobLeft = 235;
-    Vec3b knobLeftColor = { 0, 0, 0 }; Vec3b knobRightColor = { 0, 0, 0 };
+    int xKnobRight = 362; int yKnobRight = 219;
+    int xKnobLeft = 229; int yKnobLeft = 215;
+    Vec3b knobLeftColor = { 255, 255, 254 }; Vec3b knobRightColor = { 251, 253, 251 };
 
     //Scene 1A
     int xChrys = 0; int yChrys = 0;
@@ -221,14 +143,23 @@ int main()
     bool returned; //boolean to check that an image was returned from the camera
     Mat frame; //frame from the webcam
     Mat vidFrame; //frame from when play a video
-    int decision; //holds decision of the user
+    int decision = 0; //holds decision of the user
     String video; //name of video to be played
-    int iteration = 1;
     namedWindow("story", WINDOW_NORMAL);
     moveWindow("story", wDisplay1, 0); //position display
     setWindowProperty("story", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-    bool playVideo = false;
     String imageName;
+    int threshold = 50;
+    bool selected1 = false;
+    bool selected2 = false;
+    Vec3b tmp1;
+    Vec3b tmp2;
+    Vec3b d;
+    int xOne; int yOne; int xTwo; int yTwo; Vec3b oneColor; Vec3b twoColor;
+    bool playVideo = false;
+    int currentScene = 0;
+    int difference = 0;
+    int iterations = 0; //used to prevent decision from 1 scene being understood as decision from next scene as well
     
     //list_ports(); //FOR TESTING ONLY
 
@@ -247,13 +178,13 @@ int main()
 
         //assign image name based on what scene we are at
         if (currentScene == 0) { imageName = "C:/Users/jilli/images/Start_A_0001.jpg"; } //start scene
-        if (currentScene == 1) { imageName = "Scene 1A Flowers_0001.jpg"; } //scene 1A
-        if (currentScene == 2) { imageName = "Scene 1B_0001.jpg"; } //scene 1B
-        if (currentScene == 3) { imageName = "Scene 2A_0001.jpg"; } //scene 2A
-        if (currentScene == 4) { imageName = "Scene 2B_0001.jpg"; } //scene 2B
-        if (currentScene == 5) { imageName = "Scene 2C_0001.jpg"; } //scene 2C
-        if (currentScene == 6) { imageName = "Scene 2D_0001.jpg"; } //scene 2D
-
+        if (currentScene == 1) { imageName = "C:/Users/jilli/images/Scene 1A Flowers_0017.jpg"; iterations = 0; } //scene 1A
+        if (currentScene == 2) { imageName = "C:/Users/jilli/images/Scene 1B_0015.jpg"; iterations = 0; } //scene 1B
+        if (currentScene == 3) { imageName = "C:/Users/jilli/images/Scene 2A_0001.jpg"; } //scene 2A
+        if (currentScene == 4) { imageName = "C:/Users/jilli/images/Scene 2B_0001.jpg"; } //scene 2B
+        if (currentScene == 5) { imageName = "C:/Users/jilli/images/Scene 2C_0001.jpg"; } //scene 2C
+        if (currentScene == 6) { imageName = "C:/Users/jilli/images/Scene 2D_0001.jpg"; } //scene 2D
+        
         //display the scene
         Mat img = imread(imageName); //import image from file folder 
         //cout << img.size << endl; //FOR TESTING
@@ -269,88 +200,145 @@ int main()
         }
 
         imshow("story", img); 
+        Sleep(500);
 
-        //FOR CALIBRATION STEP 1
-        //while (image_counter == 1) { getImage("Scene 1A Flowers_0015.jpg", wDisplay1); }
-        //while (image_counter == 2) { getImage("Scene 1B_0015.jpg", wDisplay1); }
-
-        //calibrate automatically based on scene - only calibrate if it hasn't been done yet before
-        if (currentScene == 0 && vector_is_empty(knobLeftColor) && vector_is_empty(knobRightColor))
+        //check what scene currently at to assign values for checking decision
+        if (currentScene == 0)
         {
-            calibrate(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
-            cout << "calibrated scene " << currentScene << endl;
+            xOne = xKnobLeft;
+            yOne = yKnobLeft;
+            xTwo = xKnobRight;
+            yTwo = yKnobRight;
+            oneColor = knobLeftColor;
+            twoColor = knobRightColor;
         }
-        //else if (currentScene == 1 && vector_is_empty(chrysColor) && vector_is_empty(violetColor))
-        //{
-        //    calibrate(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
-        //    cout << "calibrated scene " << currentScene << endl;
-        //}
-        //else if (currentScene == 2 && vector_is_empty(winterKeyColor) && vector_is_empty(springKeyColor))
-        //{
-        //    calibrate(xWinterKey, yWinterKey, xSpringKey, ySpringKey, winterKeyColor, springKeyColor, frame);
-        //    cout << "calibrated scene " << currentScene << endl;
-        //}
+        else if (currentScene == 1)
+        {
+            xOne = xViolet;
+            yOne = yViolet;
+            xTwo = xChrys;
+            yTwo = yChrys;
+            oneColor = violetColor;
+            twoColor = chrysColor;
+        }
+        else if (currentScene == 2)
+        {
+            xOne = xWinterKey;
+            yOne = yWinterKey;
+            xTwo = xSpringKey;
+            yTwo = ySpringKey;
+            oneColor = winterKeyColor;
+            twoColor = springKeyColor;
+        }
+        
+        //CHECK FOR DECISION
+        //check to make sure you remembered to do calibration step 2
+        if (vector_is_empty(oneColor) || vector_is_empty(twoColor))
+        {
+            cout << "not calibrated" << endl;
+        }
 
-        ////check what scene currently at to know what decisions are the choices
-        ////detect decisions accordingly
-        //if (currentScene == 0)
-        //{
-        //    decision = detect_decision(xKnobLeft, yKnobLeft, xKnobRight, yKnobRight, knobLeftColor, knobRightColor, frame);
-        //}
-        //else if (currentScene == 1)
-        //{
-        //    decision = detect_decision(xViolet, yViolet, xChrys, yChrys, violetColor, chrysColor, frame);
-        //}
-        //else if (currentScene == 2)
-        //{
-        //    decision = detect_decision(xWinterKey, yWinterKey, xSpringKey, ySpringKey, winterKeyColor, springKeyColor, frame);
-        //}
-        //
-        ////check if scene needs to change and call playVideo method for correct video
-        //if (decision != 0 && decision != -1)
-        //{
-        //    //CHANGE THESE SCENE NAMES BASED ON FILE NAMES
-        //    if (currentScene == 0)
-        //    {
-        //        if (decision == 1) 
-        //        { 
-        //            currentScene = 1;
-        //            video = "Scene 1A";
-        //        }
-        //        if (decision == 2) 
-        //        {
-        //            currentScene = 2;
-        //            video = "Scene1B"; 
-        //        }
-        //    }
-        //    if (currentScene == 1)
-        //    {
-        //        if (decision == 1) 
-        //        { 
-        //            currentScene = 3;
-        //            video = Scene2A"; 
-        //        }
-        //        if (decision == 2) 
-        //        { 
-        //            currentScene = 4;
-        //            video = "Scene2B";
-        //        }
-        //    }
-        //    if (currentScene == 2)
-        //    {
-        //        if (decision == 1) 
-        //        { 
-        //            currentScene = 5;
-        //            video = "Scene2C"; 
-        //        }
-        //        if (decision == 2) 
-        //        { 
-        //            currentScene = 6;
-        //            video = "Scene2D"; 
-        //        }
-        //    }
-        // playVideo = true;
-        //}
+        //assign variables needed to check for color disparities
+        tmp1 = frame.at<Vec3b>(yOne, xOne);
+        tmp2 = frame.at<Vec3b>(yTwo, xTwo);
+
+        //Checking for color disparities with option 1
+        d = oneColor - tmp1;
+
+        //multiply each element by itself individually
+        d[0] = d[0] * d[0];
+        d[1] = d[1] * d[1];
+        d[2] = d[2] * d[2];
+
+        difference = d[0] + d[1] + d[2]; //calculate total difference by adding RGB values together
+
+        cout << "diff 1 " << difference << endl;
+
+        if (difference > threshold)
+        {
+            selected1 = true;
+        }
+
+        //Checking for color disparities with option 2
+        d = twoColor - tmp1;
+        //multiply each element by itself individually
+        //d[0] = d[0] * d[0];
+        //d[1] = d[1] * d[1];
+        //d[2] = d[2] * d[2];
+
+        difference = d[0] + d[1] + d[2];
+        cout << "diff 2 " << difference << endl;
+
+        if (difference > threshold)
+        {
+            selected2 = true;
+        }
+
+        if (selected1 && selected2)
+        {
+            cout << "You must only choose 1 choice" << endl;
+        }
+        else if (selected1)
+        {
+            cout << "Option 1 was chosen" << endl;
+            decision = 1;
+        }
+        else if (selected2)
+        {
+            cout << "Option 2 was chosen" << endl;
+            decision = 2;
+        }
+
+        if (decision > 0 && iterations >= 50) //CHANGE STRING OF VIDEO NAME HERE
+        {
+            if (currentScene == 0)
+            {
+                if (decision == 1)
+                {
+                    currentScene = 1;
+                    video = "Scene 1A";
+                }
+                if (decision == 2)
+                {
+                    currentScene = 2;
+                    video = "Scene1B";
+                }
+            }
+            if (currentScene == 1)
+            {
+                if (decision == 1)
+                {
+                    currentScene = 3;
+                    video = "Scene2A";
+                }
+                if (decision == 2)
+                {
+                    currentScene = 4;
+                    video = "Scene2B";
+                }
+            }
+            if (currentScene == 2)
+            {
+                if (decision == 1)
+                {
+                    currentScene = 5;
+                    video = "Scene2C";
+                }
+                if (decision == 2)
+                {
+                    currentScene = 6;
+                    video = "Scene2D";
+                }
+            }
+            playVideo = true;
+        }
+
+        //reset decision variables
+        selected1 = false;
+        selected2 = false;
+        decision = 0;
+        d = { 0, 0, 0 };
+        difference = 0;
 
         //if (playVideo == true)
         //{
@@ -383,7 +371,7 @@ int main()
         //    delete& frame;
         //    cap.release();
         //}
-        
+        iterations++;
 
         //setting up key strokes to do different actions
         int k = waitKey(1) & 0xff;
@@ -427,5 +415,8 @@ int main()
     delete &winterKeyColor;
     delete &springKeyColor;*/
     cam.release();
-    destroyAllWindows();
+    /*destroyAllWindows();
+    delete& tmp1;
+    delete& tmp2;
+    delete& d;*/
 }
