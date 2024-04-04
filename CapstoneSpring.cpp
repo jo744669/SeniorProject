@@ -142,8 +142,9 @@ int main()
     Vec3b tmp2;
     Vec3b d;
     int xOne; int yOne; int xTwo; int yTwo; 
-    Vec3b& oneColor = knobLeftColor; 
-    Vec3b& twoColor = knobRightColor;
+    Vec3b& calOneColor = knobLeftColor; //ref variable for calibration
+    Vec3b& calTwoColor = knobRightColor; //refvariable for calibration 
+    Vec3b oneColor; Vec3b twoColor;
     bool playVideo = false;
     int currentScene = 0;
     int difference = 0;
@@ -250,9 +251,9 @@ int main()
         //Checking for color disparities with option 2
         d = twoColor - tmp1;
         //multiply each element by itself individually
-        //d[0] = d[0] * d[0];
-        //d[1] = d[1] * d[1];
-        //d[2] = d[2] * d[2];
+        d[0] = d[0] * d[0];
+        d[1] = d[1] * d[1];
+        d[2] = d[2] * d[2];
 
         difference = d[0] + d[1] + d[2];
         cout << "diff 2 " << difference << endl;
@@ -378,8 +379,8 @@ int main()
                 yOne = yKnobLeft;
                 xTwo = xKnobRight;
                 yTwo = yKnobRight;
-                oneColor = knobLeftColor;
-                twoColor = knobRightColor;
+                calOneColor = knobLeftColor;
+                calTwoColor = knobRightColor;
             }
             else if (currentScene == 1)
             {
@@ -387,8 +388,8 @@ int main()
                 yOne = yViolet;
                 xTwo = xChrys;
                 yTwo = yChrys;
-                oneColor = violetColor;
-                twoColor = chrysColor;
+                calOneColor = violetColor;
+                calTwoColor = chrysColor;
             }
             else if (currentScene == 2)
             {
@@ -396,12 +397,12 @@ int main()
                 yOne = yWinterKey;
                 xTwo = xSpringKey;
                 yTwo = ySpringKey;
-                oneColor = winterKeyColor;
-                twoColor = springKeyColor;
+                calOneColor = winterKeyColor;
+                calTwoColor = springKeyColor;
             }
-            oneColor = frame.at<Vec3b>(yOne, xOne);
-            twoColor = frame.at<Vec3b>(yTwo, xTwo);
-            cout << "calibrate: " << oneColor << " and " << twoColor << endl;
+            calOneColor = frame.at<Vec3b>(yOne, xOne);
+            calTwoColor = frame.at<Vec3b>(yTwo, xTwo);
+            cout << "calibrate: " << calOneColor << " and " << calTwoColor << endl;
             cout << "knob left " << knobLeftColor << " and knob right " << knobRightColor << endl; //FIX THIS
         }
         else if (k % 256 == 32)
