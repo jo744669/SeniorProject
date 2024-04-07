@@ -140,6 +140,7 @@ int main()
     */
     while (true)
     {
+        playVideo = false;
         returned = cam.read(frame); //frame comes from external camera image
         if (!returned)
         {
@@ -267,12 +268,14 @@ int main()
                     if (decision == 1)
                     {
                         currentScene = 1;
-                        video = "Scene 1A";
+                        video = "C:/Users/jilli/images/Scene1A.mp4";
+                        playVideo = true;
                     }
                     if (decision == 2)
                     {
                         currentScene = 2;
-                        video = "Scene1B";
+                        video = "C:/Users/jilli/images/Scene1B.mp4";
+                        playVideo = true;
                     }
                 }
                 else if (currentScene == 1)
@@ -301,7 +304,6 @@ int main()
                         video = "Scene2D";
                     }
                 }
-                playVideo = true;
             }
 
             //reset decision variables
@@ -314,37 +316,37 @@ int main()
             difference2 = 0;
         }
 
-        //if (playVideo == true)
-        //{
-        //    VideoCapture cap(video);
-        //    // Check if camera opened successfully
-        //    if (!cap.isOpened()) {
-        //        cout << "Error opening video stream or file" << endl;
-        //        return -1;
-        //    }
+        if (playVideo == true)
+        {
+            VideoCapture cap1(video);
+            // Check if camera opened successfully
+            if (!cap1.isOpened()) {
+                cout << "Error opening video stream or file" << endl;
+                return -1;
+            }
 
-        //    //display video to the correct window
-        //    namedWindow("video", WINDOW_NORMAL);
-        //    moveWindow("video", wDisplay1, 0); //position display
-        //    setWindowProperty("video", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-        //    Mat frame;
+            ////display video to the correct window
+            //namedWindow("video", WINDOW_NORMAL);
+            //moveWindow("video", wDisplay1, 0); //position display
+            //setWindowProperty("video", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
 
-        //    while (1)
-        //    {
-        //        // Capture frame-by-frame
-        //        cap >> vidFrame;
+            while (true)
+            {
+                // Capture frame-by-frame
+                cap1 >> vidFrame;
 
-        //        // If the frame is empty, break immediately
-        //        if (vidFrame.empty())
-        //            break;
+                // If the frame is empty, break immediately
+                if (vidFrame.empty())
+                    break;
 
-        //        // Display the resulting frame
-        //        imshow("video", vidFrame);
-        //    }
+                // Display the resulting frame
+                imshow("story", vidFrame);
+                waitKey(3);
+            }
 
-        //    delete& frame;
-        //    cap.release();
-        //}
+            /*delete& vidFrame;
+            cap1.release();*/
+        }
 
         //setting up key strokes to do different actions
         int k = waitKey(1) & 0xff;
@@ -387,7 +389,7 @@ int main()
     }
 
     //avoid memory leaks at the very end
-    delete &knobLeftColor;
+    /*delete &knobLeftColor;
     delete &knobRightColor;
     delete &chrysColor;
     delete &violetColor;
@@ -398,5 +400,5 @@ int main()
     delete& tmp1;
     delete& tmp2;
     delete& d1;
-    delete& d2;
+    delete& d2;*/
 }
