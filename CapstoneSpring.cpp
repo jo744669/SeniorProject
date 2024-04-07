@@ -108,18 +108,18 @@ int main()
     */
 
     //Start scene
-    int xKnobRight = 362; int yKnobRight = 219;
-    int xKnobLeft = 229; int yKnobLeft = 215;
-    Vec3b knobLeftColor = { 255, 255, 254 }; Vec3b knobRightColor = { 251, 253, 251 };
+    int xKnobRight = 359; int yKnobRight = 227;
+    int xKnobLeft = 221; int yKnobLeft = 222;
+    Vec3b knobLeftColor = { 0, 0, 0 }; Vec3b knobRightColor = { 0, 0, 0 };
 
     //Scene 1A
-    int xChrys = 0; int yChrys = 0;
-    int xViolet = 0; int yViolet = 0;
+    int xChrys = 345; int yChrys = 94;
+    int xViolet = 260; int yViolet = 88;
     Vec3b chrysColor = { 0, 0, 0 }; Vec3b violetColor = { 0, 0, 0 };
 
     //Scene 1B
-    int xWinterKey = 0; int yWinterKey = 0;
-    int xSpringKey = 0; int ySpringKey = 0;
+    int xWinterKey = 237; int yWinterKey = 205;
+    int xSpringKey = 318; int ySpringKey = 207;
     Vec3b winterKeyColor = { 0, 0, 0 }; Vec3b springKeyColor = { 0, 0, 0 };
 
     VideoCapture cam = VideoCapture(1); //assign to the correct port
@@ -140,15 +140,11 @@ int main()
     bool selected2 = false;
     Vec3b tmp1;
     Vec3b tmp2;
-    Vec3b d;
-    int xOne; int yOne; int xTwo; int yTwo; 
-    Vec3b& calOneColor = knobLeftColor; //ref variable for calibration
-    Vec3b& calTwoColor = knobRightColor; //refvariable for calibration 
-    Vec3b oneColor; Vec3b twoColor;
+    Vec3b d1; Vec3b d2;
     bool playVideo = false;
     int currentScene = 0;
-    int difference = 0;
-    int iterations = 0; //used to prevent decision from 1 scene being understood as decision from next scene as well
+    int difference1 = 0;
+    int difference2 = 0;
     
     //list_ports(); //FOR TESTING ONLY
 
@@ -167,8 +163,8 @@ int main()
 
         //assign image name based on what scene we are at
         if (currentScene == 0) { imageName = "C:/Users/jilli/images/Start_A_0001.jpg"; } //start scene
-        if (currentScene == 1) { imageName = "C:/Users/jilli/images/Scene 1A Flowers_0017.jpg"; iterations = 0; } //scene 1A
-        if (currentScene == 2) { imageName = "C:/Users/jilli/images/Scene 1B_0015.jpg"; iterations = 0; } //scene 1B
+        if (currentScene == 1) { imageName = "C:/Users/jilli/images/Scene 1A Flowers_0017.jpg"; } //scene 1A
+        if (currentScene == 2) { imageName = "C:/Users/jilli/images/Scene 1B_0015.jpg"; } //scene 1B
         if (currentScene == 3) { imageName = "C:/Users/jilli/images/Scene 2A_0001.jpg"; } //scene 2A
         if (currentScene == 4) { imageName = "C:/Users/jilli/images/Scene 2B_0001.jpg"; } //scene 2B
         if (currentScene == 5) { imageName = "C:/Users/jilli/images/Scene 2C_0001.jpg"; } //scene 2C
@@ -184,150 +180,152 @@ int main()
 
         if (img.empty())
         {
-            cout << "Could not read the image: " << "Start_A_0001.jpg" << endl;
+            cout << "Could not read the image" << endl;
             return -1;
         }
 
         imshow("story", img); 
+        cout << "display scene " << currentScene << endl;
         Sleep(500);
-
-        //check what scene currently at to assign values for checking decision
-        if (currentScene == 0)
-        {
-            xOne = xKnobLeft;
-            yOne = yKnobLeft;
-            xTwo = xKnobRight;
-            yTwo = yKnobRight;
-            oneColor = knobLeftColor;
-            twoColor = knobRightColor;
-        }
-        else if (currentScene == 1)
-        {
-            xOne = xViolet;
-            yOne = yViolet;
-            xTwo = xChrys;
-            yTwo = yChrys;
-            oneColor = violetColor;
-            twoColor = chrysColor;
-        }
-        else if (currentScene == 2)
-        {
-            xOne = xWinterKey;
-            yOne = yWinterKey;
-            xTwo = xSpringKey;
-            yTwo = ySpringKey;
-            oneColor = winterKeyColor;
-            twoColor = springKeyColor;
-        }
         
         //CHECK FOR DECISION
         //check to make sure you remembered to do calibration step 2
-        if (vector_is_empty(oneColor) || vector_is_empty(twoColor))
+        if (currentScene == 0 && (vector_is_empty(knobLeftColor) || vector_is_empty(knobRightColor)))
         {
             cout << "not calibrated" << endl;
         }
-
-        //assign variables needed to check for color disparities
-        tmp1 = frame.at<Vec3b>(yOne, xOne);
-        tmp2 = frame.at<Vec3b>(yTwo, xTwo);
-
-        //Checking for color disparities with option 1
-        d = oneColor - tmp1;
-
-        //multiply each element by itself individually
-        d[0] = d[0] * d[0];
-        d[1] = d[1] * d[1];
-        d[2] = d[2] * d[2];
-
-        difference = d[0] + d[1] + d[2]; //calculate total difference by adding RGB values together
-
-        cout << "diff 1 " << difference << endl;
-
-        if (difference > threshold)
+        else if (currentScene == 1 && (vector_is_empty(violetColor) || vector_is_empty(chrysColor)))
         {
-            selected1 = true;
+            cout << "not calibrated" << endl;
         }
-
-        //Checking for color disparities with option 2
-        d = twoColor - tmp1;
-        //multiply each element by itself individually
-        d[0] = d[0] * d[0];
-        d[1] = d[1] * d[1];
-        d[2] = d[2] * d[2];
-
-        difference = d[0] + d[1] + d[2];
-        cout << "diff 2 " << difference << endl;
-
-        if (difference > threshold)
+        else if (currentScene == 2 && (vector_is_empty(springKeyColor) || vector_is_empty(winterKeyColor)))
         {
-            selected2 = true;
+            cout << "not calibrated" << endl;
         }
-
-        if (selected1 && selected2)
+        else //only calculate differences if it is calibrated
         {
-            cout << "You must only choose 1 choice" << endl;
-        }
-        else if (selected1)
-        {
-            cout << "Option 1 was chosen" << endl;
-            decision = 1;
-        }
-        else if (selected2)
-        {
-            cout << "Option 2 was chosen" << endl;
-            decision = 2;
-        }
-
-        if (decision > 0 && iterations >= 50) //CHANGE STRING OF VIDEO NAME HERE
-        {
+            //assign variables needed to check for color disparities
             if (currentScene == 0)
             {
-                if (decision == 1)
-                {
-                    currentScene = 1;
-                    video = "Scene 1A";
-                }
-                if (decision == 2)
-                {
-                    currentScene = 2;
-                    video = "Scene1B";
-                }
+                tmp1 = frame.at<Vec3b>(yKnobLeft, xKnobLeft);
+                tmp2 = frame.at<Vec3b>(yKnobRight, xKnobRight);
+                d1 = knobLeftColor - tmp1;
+                d2 = knobRightColor - tmp2;
             }
-            if (currentScene == 1)
+            else if (currentScene == 1)
             {
-                if (decision == 1)
-                {
-                    currentScene = 3;
-                    video = "Scene2A";
-                }
-                if (decision == 2)
-                {
-                    currentScene = 4;
-                    video = "Scene2B";
-                }
+                tmp1 = frame.at<Vec3b>(yViolet, xViolet);
+                tmp2 = frame.at<Vec3b>(yChrys, xChrys);
+                d1 = violetColor - tmp1;
+                d2 = chrysColor - tmp2;
             }
-            if (currentScene == 2)
+            else if (currentScene == 2)
             {
-                if (decision == 1)
-                {
-                    currentScene = 5;
-                    video = "Scene2C";
-                }
-                if (decision == 2)
-                {
-                    currentScene = 6;
-                    video = "Scene2D";
-                }
+                tmp1 = frame.at<Vec3b>(yWinterKey, xWinterKey);
+                tmp2 = frame.at<Vec3b>(ySpringKey, xSpringKey);
+                d1 = winterKeyColor - tmp1;
+                d2 = springKeyColor - tmp2;
             }
-            playVideo = true;
-        }
+            //Checking for color disparities with option 1
+            cout << "d1: " << d1 << endl;
+            cout << "d2: " << d2 << endl;
+            cout << "tmp1: " << tmp1 << "   tmp2: " << tmp2 << endl;
 
-        //reset decision variables
-        selected1 = false;
-        selected2 = false;
-        decision = 0;
-        d = { 0, 0, 0 };
-        difference = 0;
+            //multiply each element by itself individually
+            d1[0] = d1[0] * d1[0];
+            d1[1] = d1[1] * d1[1];
+            d1[2] = d1[2] * d1[2];
+
+            difference1 = d1[0] + d1[1] + d1[2]; //calculate total difference by adding RGB values together
+
+            cout << "diff 1 " << difference1 << endl;
+
+            //Checking for color disparities with option 2
+            //multiply each element by itself individually
+            d2[0] = d2[0] * d2[0];
+            d2[1] = d2[1] * d2[1];
+            d2[2] = d2[2] * d2[2];
+
+            difference2 = d2[0] + d2[1] + d2[2];
+            cout << "diff 2 " << difference2 << endl;
+
+            if (difference1 > threshold && difference1 > difference2)
+            {
+                selected1 = true;
+            }
+            if (difference2 > threshold && difference2 > difference1)
+            {
+                selected2 = true;
+            }
+
+            if (selected1 && selected2)
+            {
+                cout << "You must only choose 1 choice" << endl;
+            }
+            else if (selected1)
+            {
+                cout << "Option 1 was chosen" << endl;
+                decision = 1;
+            }
+            else if (selected2)
+            {
+                cout << "Option 2 was chosen" << endl;
+                decision = 2;
+            }
+
+            if (decision > 0) //CHANGE STRING OF VIDEO NAME HERE
+            {
+                if (currentScene == 0)
+                {
+                    if (decision == 1)
+                    {
+                        currentScene = 1;
+                        video = "Scene 1A";
+                    }
+                    if (decision == 2)
+                    {
+                        currentScene = 2;
+                        video = "Scene1B";
+                    }
+                }
+                else if (currentScene == 1)
+                {
+                    if (decision == 1)
+                    {
+                        currentScene = 3;
+                        video = "Scene2A";
+                    }
+                    if (decision == 2)
+                    {
+                        currentScene = 4;
+                        video = "Scene2B";
+                    }
+                }
+                else if (currentScene == 2)
+                {
+                    if (decision == 1)
+                    {
+                        currentScene = 5;
+                        video = "Scene2C";
+                    }
+                    if (decision == 2)
+                    {
+                        currentScene = 6;
+                        video = "Scene2D";
+                    }
+                }
+                playVideo = true;
+            }
+
+            //reset decision variables
+            selected1 = false;
+            selected2 = false;
+            decision = 0;
+            d1 = { 0, 0, 0 };
+            d2 = { 0, 0, 0 };
+            difference1 = 0;
+            difference2 = 0;
+        }
 
         //if (playVideo == true)
         //{
@@ -360,7 +358,6 @@ int main()
         //    delete& frame;
         //    cap.release();
         //}
-        iterations++;
 
         //setting up key strokes to do different actions
         int k = waitKey(1) & 0xff;
@@ -375,35 +372,22 @@ int main()
             //run calibration step 2 - this is here to do the calibration manually but it is automatically done in the main loop
             if (currentScene == 0)
             {
-                xOne = xKnobLeft;
-                yOne = yKnobLeft;
-                xTwo = xKnobRight;
-                yTwo = yKnobRight;
-                calOneColor = knobLeftColor;
-                calTwoColor = knobRightColor;
+                knobLeftColor = frame.at<Vec3b>(yKnobLeft, xKnobLeft);
+                knobRightColor = frame.at<Vec3b>(yKnobRight, xKnobRight);
             }
             else if (currentScene == 1)
             {
-                xOne = xViolet;
-                yOne = yViolet;
-                xTwo = xChrys;
-                yTwo = yChrys;
-                calOneColor = violetColor;
-                calTwoColor = chrysColor;
+                violetColor = frame.at<Vec3b>(yViolet, xViolet);
+                chrysColor = frame.at<Vec3b>(yChrys, xChrys);
             }
             else if (currentScene == 2)
             {
-                xOne = xWinterKey;
-                yOne = yWinterKey;
-                xTwo = xSpringKey;
-                yTwo = ySpringKey;
-                calOneColor = winterKeyColor;
-                calTwoColor = springKeyColor;
+                winterKeyColor = frame.at<Vec3b>(yWinterKey, xWinterKey);
+                springKeyColor = frame.at<Vec3b>(ySpringKey, xSpringKey);
             }
-            calOneColor = frame.at<Vec3b>(yOne, xOne);
-            calTwoColor = frame.at<Vec3b>(yTwo, xTwo);
-            cout << "calibrate: " << calOneColor << " and " << calTwoColor << endl;
-            cout << "knob left " << knobLeftColor << " and knob right " << knobRightColor << endl; //FIX THIS
+            cout << "knob left " << knobLeftColor << " and knob right " << knobRightColor << endl;
+            cout << "winter: " << winterKeyColor << " and spring: " << springKeyColor << endl;
+            cout << "violet " << violetColor << " and chrys " << chrysColor << endl;
         }
         else if (k % 256 == 32)
         {
@@ -416,15 +400,16 @@ int main()
     }
 
     //avoid memory leaks at the very end
-    /*delete &knobLeftColor;
+    delete &knobLeftColor;
     delete &knobRightColor;
     delete &chrysColor;
     delete &violetColor;
     delete &winterKeyColor;
-    delete &springKeyColor;*/
+    delete &springKeyColor;
     cam.release();
-    /*destroyAllWindows();
+    destroyAllWindows();
     delete& tmp1;
     delete& tmp2;
-    delete& d;*/
+    delete& d1;
+    delete& d2;
 }
