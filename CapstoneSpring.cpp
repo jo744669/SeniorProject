@@ -93,19 +93,6 @@ int main()
     int hDisplay1 = 0;    //1080 / 2
     int wDisplay2 = 0;    
     int hDisplay2 = 0;
-    
-    //Calibration Step 1 - do this each time for each image after setting up the camera
-    /*
-    * Run this program
-    * Aim the camera at the display (where the story will be projected)
-    * In the other window on the other display where the camera is:
-    *   move the mouse cursor to the center of each decision and record the positions
-    * Repeat manually for each decision image
-    * Stop this program
-    * Set those (x,y) values below
-    * Do not set the colors
-    * Repeat this every time the camera or display is moved
-    */
 
     //Start scene
     int xKnobRight = 359; int yKnobRight = 227;
