@@ -95,18 +95,18 @@ int main()
     int hDisplay2 = 0;
 
     //Start scene
-    int xKnobRight = 359; int yKnobRight = 227;
-    int xKnobLeft = 221; int yKnobLeft = 222;
+    int xKnobRight = 359; int yKnobRight = 210;
+    int xKnobLeft = 227; int yKnobLeft = 213;
     Vec3b knobLeftColor = { 0, 0, 0 }; Vec3b knobRightColor = { 0, 0, 0 };
 
     //Scene 1A
-    int xChrys = 345; int yChrys = 94;
-    int xViolet = 260; int yViolet = 88;
+    int xChrys = 358; int yChrys = 84;
+    int xViolet = 277; int yViolet = 83;
     Vec3b chrysColor = { 0, 0, 0 }; Vec3b violetColor = { 0, 0, 0 };
 
     //Scene 1B
-    int xWinterKey = 237; int yWinterKey = 205;
-    int xSpringKey = 318; int ySpringKey = 207;
+    int xWinterKey = 261; int yWinterKey = 196;
+    int xSpringKey = 338; int ySpringKey = 195;
     Vec3b winterKeyColor = { 0, 0, 0 }; Vec3b springKeyColor = { 0, 0, 0 };
 
     VideoCapture cam = VideoCapture(1); //assign to the correct port
@@ -122,7 +122,7 @@ int main()
     moveWindow("story", wDisplay1, 0); //position display
     setWindowProperty("story", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     String imageName;
-    int threshold = 50;
+    int threshold = 30;
     bool selected1 = false;
     bool selected2 = false;
     Vec3b tmp1;
@@ -130,8 +130,10 @@ int main()
     Vec3b d1; Vec3b d2;
     bool playVideo = false;
     int currentScene = 0;
-    int difference1 = 0;
-    int difference2 = 0;
+    int difference1 = 0; //difference in colors of choice 1
+    int difference2 = 0; //difference in colors of choice 2
+    int iteration = 0; //gives user a chance to make their decision
+    Mat previousFrame;
     
     //list_ports(); //FOR TESTING ONLY
 
@@ -160,7 +162,6 @@ int main()
         
         //display the scene
         Mat img = imread(imageName); //import image from file folder 
-        //cout << img.size << endl; //FOR TESTING
 
         //set height and width to cols and rows respectively
         int hStory = img.cols;
@@ -195,24 +196,42 @@ int main()
             //assign variables needed to check for color disparities
             if (currentScene == 0)
             {
-                tmp1 = frame.at<Vec3b>(yKnobLeft, xKnobLeft);
-                tmp2 = frame.at<Vec3b>(yKnobRight, xKnobRight);
-                d1 = knobLeftColor - tmp1;
-                d2 = knobRightColor - tmp2;
+                tmp1 = frame.at<Vec3b>(xKnobLeft, yKnobLeft);
+                tmp2 = frame.at<Vec3b>(xKnobRight, yKnobRight);
+
+                d1[0] = abs(knobLeftColor[0] - tmp1[0]);
+                d1[1] = abs(knobLeftColor[1] - tmp1[1]);
+                d1[2] = abs(knobLeftColor[2] - tmp1[2]);
+
+                d2[0] = abs(knobRightColor[0] - tmp2[0]);
+                d2[1] = abs(knobRightColor[1] - tmp2[1]);
+                d2[2] = abs(knobRightColor[2] - tmp2[2]);
             }
             else if (currentScene == 1)
             {
-                tmp1 = frame.at<Vec3b>(yViolet, xViolet);
-                tmp2 = frame.at<Vec3b>(yChrys, xChrys);
-                d1 = violetColor - tmp1;
-                d2 = chrysColor - tmp2;
+                tmp1 = frame.at<Vec3b>(xViolet, yViolet);
+                tmp2 = frame.at<Vec3b>(xChrys, yChrys);
+
+                d1[0] = abs(violetColor[0] - tmp1[0]);
+                d1[1] = abs(violetColor[1] - tmp1[1]);
+                d1[2] = abs(violetColor[2] - tmp1[2]);
+
+                d2[0] = abs(chrysColor[0] - tmp2[0]);
+                d2[1] = abs(chrysColor[1] - tmp2[1]);
+                d2[2] = abs(chrysColor[2] - tmp2[2]);
             }
             else if (currentScene == 2)
             {
-                tmp1 = frame.at<Vec3b>(yWinterKey, xWinterKey);
-                tmp2 = frame.at<Vec3b>(ySpringKey, xSpringKey);
-                d1 = winterKeyColor - tmp1;
-                d2 = springKeyColor - tmp2;
+                tmp1 = frame.at<Vec3b>(xWinterKey, yWinterKey);
+                tmp2 = frame.at<Vec3b>(xSpringKey, ySpringKey);
+
+                d1[0] = abs(winterKeyColor[0] - tmp1[0]);
+                d1[1] = abs(winterKeyColor[1] - tmp1[1]);
+                d1[2] = abs(winterKeyColor[2] - tmp1[2]);
+
+                d2[0] = abs(springKeyColor[0] - tmp2[0]);
+                d2[1] = abs(springKeyColor[1] - tmp2[1]);
+                d2[2] = abs(springKeyColor[2] - tmp2[2]);
             }
             //Checking for color disparities with option 1
             cout << "d1: " << d1 << endl;
@@ -225,6 +244,7 @@ int main()
             d1[2] = d1[2] * d1[2];
 
             difference1 = d1[0] + d1[1] + d1[2]; //calculate total difference by adding RGB values together
+            //difference1 = difference1 * 1.5;
 
             cout << "diff 1 " << difference1 << endl;
 
@@ -235,6 +255,8 @@ int main()
             d2[2] = d2[2] * d2[2];
 
             difference2 = d2[0] + d2[1] + d2[2];
+            //difference2 = difference2 * 1.5;
+
             cout << "diff 2 " << difference2 << endl;
 
             if (difference1 > threshold && difference1 > difference2)
@@ -274,7 +296,7 @@ int main()
                     if (decision == 2)
                     {
                         currentScene = 2;
-                        video = "C:/Users/jilli/images/Scene1B.mp4";
+                        video = "C:/Users/jilli/images/Scene1B-1.mp4";
                         playVideo = true;
                     }
                 }
@@ -325,11 +347,6 @@ int main()
                 return -1;
             }
 
-            ////display video to the correct window
-            //namedWindow("video", WINDOW_NORMAL);
-            //moveWindow("video", wDisplay1, 0); //position display
-            //setWindowProperty("video", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-
             while (true)
             {
                 // Capture frame-by-frame
@@ -343,9 +360,6 @@ int main()
                 imshow("story", vidFrame);
                 waitKey(3);
             }
-
-            /*delete& vidFrame;
-            cap1.release();*/
         }
 
         //setting up key strokes to do different actions
@@ -361,18 +375,18 @@ int main()
             //run calibration step 2 - this is here to do the calibration manually but it is automatically done in the main loop
             if (currentScene == 0)
             {
-                knobLeftColor = frame.at<Vec3b>(yKnobLeft, xKnobLeft);
-                knobRightColor = frame.at<Vec3b>(yKnobRight, xKnobRight);
+                knobLeftColor = frame.at<Vec3b>(xKnobLeft, yKnobLeft);
+                knobRightColor = frame.at<Vec3b>(xKnobRight, yKnobRight);
             }
             else if (currentScene == 1)
             {
-                violetColor = frame.at<Vec3b>(yViolet, xViolet);
-                chrysColor = frame.at<Vec3b>(yChrys, xChrys);
+                violetColor = frame.at<Vec3b>(xViolet, yViolet);
+                chrysColor = frame.at<Vec3b>(xChrys, yChrys);
             }
             else if (currentScene == 2)
             {
-                winterKeyColor = frame.at<Vec3b>(yWinterKey, xWinterKey);
-                springKeyColor = frame.at<Vec3b>(ySpringKey, xSpringKey);
+                winterKeyColor = frame.at<Vec3b>(xWinterKey, yWinterKey);
+                springKeyColor = frame.at<Vec3b>(xSpringKey, ySpringKey);
             }
             cout << "knob left " << knobLeftColor << " and knob right " << knobRightColor << endl;
             cout << "winter: " << winterKeyColor << " and spring: " << springKeyColor << endl;
