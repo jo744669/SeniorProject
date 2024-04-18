@@ -1,418 +1,469 @@
-// CapstoneSpring.cpp : This file contains the 'main' function. Program execution begins and ends there.
-#include <opencv2/core.hpp>
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/highgui.hpp>
-#include <Windows.h>
+/**
+ * file:   CapstoneSpringV2.cpp
+ * author: jillian o'connell
+ * desc.:  what does this do?
+ */
+#include <string>
+#include <unordered_map>
 
-#include <iostream>
+#include <opencv2/opencv.hpp>
+
+#define CAM 1  //camera port
+#define HOME "C:/Users/jilli/images/"       //path to where images and videos are stored
+#define wDisplay1 1281  //primary (laptop) display width
+
 
 using namespace cv;
 using namespace std;
 
-/*
-* This method checks if the vector is empty so that this code does not take up space in the main method each time it needs to be used
-*/
-bool vector_is_empty(Vec3b vector)
-{
-    if (vector[0] == 0)
+#define MAXCAM 10  //max number of ports to scan for cameras
+#define THRESHOLD 150  //sum of squared differences must exceed this to detect a selection/choice
+#define VIDEO_FRAME_DELAY 5  //delay between each frame in video (in milliseconds)
+#define verbose  true  //mucho messages (or not)
+
+static string currentScene = "Start";  //start of show
+
+class Scene;  //(defined below)
+//hash of scene name (string), and actual scene data.
+static unordered_map< string, Scene* > sc;
+//----------------------------------------------------------------------
+//class for a single target. each target must be added to a particular scene.
+// each target has the name of the next scene (when the particular target
+// is selected).
+class Target {
+public:
+    int x, y;      //location
+    int r, g, b;   //rgb value
+    string name;   //target name aka where the decision is 
+    string video;  //video file to play if this target is chosen
+    string nextSceneName;  //after selecting this target and after video
+    // plays, go to this scene number
+
+//ctor
+    Target(int x, int y, int r, int g, int b, string name, string video,
+        string nextSceneName)
     {
-        if (vector[1] == 0)
-        {
-            if (vector[2] == 0)
-            {
-                return true;
-            }
-        }
+        this->x = x;  this->y = y;
+        this->r = r;  this->g = g;  this->b = b;
+        this->name = name;
+        this->video = video;
+        this->nextSceneName = nextSceneName;
     }
-    return false;
-}
 
-//list all cameras since there are more than 1 - webcam + offboard
-//only need to run this method once at very beginning
-//my computer: port 0 is webcam and port 1 is external camera
-int list_ports()
-{
-    //create arrays of size bigger than possible number of ports
-    //must keep track of index for each array
-    int working[5] = { NULL, NULL, NULL, NULL, NULL };
-    int working_index = 0;
-
-    int non_working[6] = { NULL, NULL, NULL, NULL, NULL, NULL };
-    int non_working_index = 0;
-
-    int available[5] = { NULL, NULL, NULL, NULL, NULL };
-    int available_index = 0;
-
-    int port = 0;
-    VideoCapture camera;
-
-    //variables to hold data for when the port is working
-    Mat img;
-    bool is_reading = true;
-    double w = 0; double h = 0;
-
-    //tests until finds more than 6 non working ports - last spot in non_working array is filled
-    while (non_working[5] == NULL)
-    {
-        camera = VideoCapture(port);
-        if (!camera.isOpened())
-        {
-            non_working[non_working_index] = port;
-            cout << "Port " << port << " is not working" << endl;
-            non_working_index++;
-        }
-        else
-        {
-            is_reading = camera.read(img);
-            w = camera.get(3);
-            h = camera.get(4);
-
-            if (is_reading)
-            {
-                cout << "Port " << port << " is working and reads images (" << h << " x " << w << ")" << endl;
-                working[working_index] = port;
-                working_index++;
-            }
-            else
-            {
-                cout << "Port " << port << " for camera (" << h << " x " << w << ") is present but does not read" << endl;
-                available[available_index] = port;
-                available_index++;
-            }
-        }
-        camera.release(); //release the camera each time
-        port++; //move to the next port to be worked with
+    //pretty print the contents of an instance of Target to an output stream
+    friend ostream& operator<< (ostream& os, const Target& t) {
+        os << "(x,y)=(" << t.x << "," << t.y << ") "
+            << "(r,g,b)=(" << t.r << "," << t.g << "," << t.b << ") "
+            << "name=\"" << t.name << "\" video=\"" << t.video << "\" nextSceneName=\""
+            << t.nextSceneName << "\""
+            << endl;
+        return os;
     }
-    return 0;
+
+};
+
+//class for a single scene. each scene may have multiple targets.
+class Scene {
+public:
+    string sceneName;  //name of scene (any unique string)
+    string fname;      //image displayed with target(s)
+    vector< Target* >* targets;  //zero or more targets
+
+    //ctor
+    Scene(string sceneName, string fname, vector< Target* >* targets) {
+        this->sceneName = sceneName;
+        this->fname = fname;
+        this->targets = targets;
+    }
+
+    ~Scene(void) {  //dtor
+        // \todo after everything else is working 100%
+    }
+
+    //pretty print the contents of an instance of Target to an output stream
+    friend ostream& operator<< (ostream& os, const Scene& s) {
+        os << " sceneName=\"" << s.sceneName << "\" fname=\"" << s.fname << "\"";
+        if (s.targets == nullptr || s.targets->empty())
+            os << " targets=none";
+        else {
+            int i = 0;
+            for (auto& target : *s.targets) {
+                os << " targets[" << i << "]=" << *target;
+                i++;
+            }
+        }
+        os << endl;
+        return os;
+    }
+};
+//----------------------------------------------------------------------
+//init scenes and corresponding targets.
+static void init_scenes(void) {
+    vector< Target* >* targetsTmp = nullptr;
+    Scene* scTmp = nullptr;
+
+    //init start scene (targets first, then scene)
+    targetsTmp = new vector< Target* >();
+    //note: to make selection easier for user, you can add more than one (x,y)
+    // and (rgb) for a particular target.
+    targetsTmp->push_back(new Target(391, 199, 220, 177, 207, "knobRight", "Scene1B.mp4", "Scene 1B"));
+    targetsTmp->push_back(new Target(391, 194, 219, 243, 253, "knobRight", "Scene1B.mp4", "Scene 1B"));
+    targetsTmp->push_back(new Target(391, 204, 202, 153, 172, "knobRight", "Scene1B.mp4", "Scene 1B"));
+    targetsTmp->push_back(new Target(253, 199, 242, 188, 211, "knobLeft", "Scene1A.mp4", "Scene 1A"));
+    targetsTmp->push_back(new Target(253, 194, 211, 199, 221, "knobLeft", "Scene1A.mp4", "Scene 1A"));
+    targetsTmp->push_back(new Target(253, 203, 235, 191, 218, "knobLeft", "Scene1A.mp4", "Scene 1A"));
+    scTmp = new Scene("Start", "Start_A_0001.jpg", targetsTmp);
+    sc.insert({ scTmp->sceneName, scTmp });
+
+    //init the remaining scenes
+
+    //scene 1A
+    targetsTmp = new vector< Target* >();
+    //add targets for this scene \todo set colors
+    targetsTmp->push_back(new Target(389, 69, 222, 134, 114, "chrys", "", "Scene 2B"));
+    targetsTmp->push_back(new Target(389, 57, 210, 161, 121, "chrys", "", "Scene 2B"));
+    targetsTmp->push_back(new Target(378, 71, 198, 132, 84, "chrys", "", "Scene 2B"));
+    targetsTmp->push_back(new Target(405, 67, 184, 113, 81, "chrys", "", "Scene 2B"));
+    targetsTmp->push_back(new Target(395, 80, 202, 161, 115, "chrys", "", "Scene 2B"));
+    targetsTmp->push_back(new Target(307, 66, 228, 243, 255, "violet", "", "Scene 2A"));
+    targetsTmp->push_back(new Target(303, 54, 61, 52, 253, "violet", "", "Scene 2A"));
+    targetsTmp->push_back(new Target(295, 72, 57, 38, 241, "violet", "", "Scene 2A"));
+    targetsTmp->push_back(new Target(322, 62, 65, 52, 253, "violet", "", "Scene 2A"));
+    targetsTmp->push_back(new Target(316, 78, 56, 41, 244, "violet", "", "Scene 2A"));
+    scTmp = new Scene("Scene 1A", "Scene 1A Flowers_0015.jpg", targetsTmp);
+    sc.insert({ scTmp->sceneName, scTmp });
+
+    //scene 1B
+    targetsTmp = new vector< Target* >();
+    //add targets for this scene \todo set colors
+    targetsTmp->push_back(new Target(288, 181, 76, 190, 244, "winterKey", "", "Scene 2C"));
+    targetsTmp->push_back(new Target(288, 176, 29, 112, 128, "winterKey", "", "Scene 2C"));
+    targetsTmp->push_back(new Target(283, 182, 186, 247, 242, "winterKey", "", "Scene 2C"));
+    targetsTmp->push_back(new Target(294, 182, 170, 249, 255, "winterKey", "", "Scene 2C"));
+    targetsTmp->push_back(new Target(367, 182, 74, 217, 155, "springKey", "", "Scene 2D"));
+    targetsTmp->push_back(new Target(368, 177, 55, 163, 129, "springKey", "", "Scene 2D"));
+    targetsTmp->push_back(new Target(368, 187, 21, 140, 98, "springKey", "", "Scene 2D"));
+    scTmp = new Scene("Scene 1B", "Scene 1B_0015.jpg", targetsTmp);
+    sc.insert({ scTmp->sceneName, scTmp });
+
+    //scene 2A
+    targetsTmp = new vector< Target* >();
+    // \todo add targets for this scene
+    scTmp = new Scene("Scene 2A", "Scene 2A_0001.jpg", targetsTmp);
+    sc.insert({ scTmp->sceneName, scTmp });
+
+    //scene 2B
+    targetsTmp = new vector< Target* >();
+    // \todo add targets for this scene
+    scTmp = new Scene("Scene 2B", "Scene 2B_0001.jpg", targetsTmp);
+    sc.insert({ scTmp->sceneName, scTmp });
+
+    //scene 2C
+    targetsTmp = new vector< Target* >();
+    // \todo add targets for this scene
+    scTmp = new Scene("Scene 2C", "Scene 2C_0001.jpg", targetsTmp);
+    sc.insert({ scTmp->sceneName, scTmp });
+
+    //scene 2D
+    targetsTmp = new vector< Target* >();
+    // \todo add targets for this scene
+    scTmp = new Scene("Scene 2D", "Scene 2D_0001.jpg", targetsTmp);
+    sc.insert({ scTmp->sceneName, scTmp });
 }
+//----------------------------------------------------------------------
+//list all cameras. since there may be more than one (built-in webcam
+// plus one or more offboard usb cams. one only needs to run this once,
+// set CAM appropriately, and recompile.
+static void list_cameras(void) {
+    bool ok[MAXCAM] = {};  //init all to false
+    for (int i = 0; i < MAXCAM; i++) {
+        VideoCapture camera = VideoCapture(i);
+        if (camera.isOpened()) {
+            Mat img;
+            ok[i] = camera.read(img);
+            if (ok[i]) {
+                double w = camera.get(CAP_PROP_FRAME_WIDTH);
+                double h = camera.get(CAP_PROP_FRAME_HEIGHT);
+                cout << "camera " << i << " is working. w=" << w
+                    << " h=" << h << endl;
+            }
+        }
+        camera.release();  //release the camera each time
+    }
 
-int main()
-{
-    //Find coordinates of both displays - laptop (1) and monitor (2)
-    int wDisplay1 = 1281;    //1920 / 2
-    int hDisplay1 = 0;    //1080 / 2
-    int wDisplay2 = 0;    
-    int hDisplay2 = 0;
+    cout << endl << "camera summary:" << endl;
+    for (int i = 0; i < MAXCAM; i++) {
+        if (ok[i])    cout << " camera " << i << " is working." << endl;
+    }
+}
+//----------------------------------------------------------------------
+//simply print out the name of the running program and args (if any).
+static void print_args(int argc, char* argv[]) {
+    cout << "running";
+    for (int i = 0; i < argc; i++)    cout << " " << argv[i];
+    cout << endl;
+}
+//----------------------------------------------------------------------
+//frame is image from camera. check frame for changes indicating a choice
+// made by the user.
+static Target* check_for_decision(Mat frame) {
+    //check to make sure we remembered to do calibration step 2
+    if (sc[currentScene]->targets == nullptr) {
+        cout << "scene " << currentScene << " is not calibrated"
+            << endl;
+        return nullptr;
+    }
+    if (sc[currentScene]->targets->empty()) {
+        cout << "scene " << currentScene << " does not have any targets"
+            << endl;
+        return nullptr;
+    }
 
-    //Start scene
-    int xKnobRight = 359; int yKnobRight = 210;
-    int xKnobLeft = 227; int yKnobLeft = 213;
-    Vec3b knobLeftColor = { 0, 0, 0 }; Vec3b knobRightColor = { 0, 0, 0 };
+    //check all targets in this scene for selection
+    for (auto t : *sc[currentScene]->targets) {
+        if (verbose)    cout << "check_for_decision(): " << "    " << *t << endl;
+        Vec3b camRGB = frame.at<Vec3b>(Point(t->x, t->y));  //target rgb value from camera
+        if (verbose)    cout << "color at target from camera: " << camRGB << endl;
+        //calc diffs between target and camera color values
+        int dr = t->r - camRGB[0];
+        int dg = t->g - camRGB[1];
+        int db = t->b - camRGB[2];
+        int dist = abs(dr + dg + db);  //sum of squared diffs
+        if (verbose)    cout << "dist**2=" << dist << endl;
+        //anything chosen?
+        if (dist >= THRESHOLD)    return t;
+    }
+    return nullptr;
+}
+//----------------------------------------------------------------------
+//play video from file
+static void playVideo(string video) {
+    video = HOME + video;  //prepend path to videos
+    VideoCapture vid(video);
+    // check if video file opened successfully
+    if (!vid.isOpened()) {
+        cerr << "error opening video stream or file: " << video << endl;
+        return;
+    }
 
-    //Scene 1A
-    int xChrys = 358; int yChrys = 84;
-    int xViolet = 277; int yViolet = 83;
-    Vec3b chrysColor = { 0, 0, 0 }; Vec3b violetColor = { 0, 0, 0 };
+    Mat vidFrame;  // frame from video
+    for (; ; ) {  // play video frame-by-frame
+        vid >> vidFrame;
+        // if the frame is empty, break
+        if (vidFrame.empty())    break;
+        // display the resulting frame
+        imshow("story", vidFrame);
+        waitKey(VIDEO_FRAME_DELAY);
+    }
+    vid.release();
+}
+//----------------------------------------------------------------------
+//display each scene, capture image of it from camera, and save to file.
+// use this to determine targets in images.
+static void test_scenes(VideoCapture cam) {
+    cout << "test in progress" << endl;
+    Mat frame;  //frame from the webcam
+    //for each scene ...
+    for (const auto& tmp : sc) {
+        if (verbose)    cout << "key=" << tmp.first << " val=" << *tmp.second;
+        string imageName = tmp.second->fname;
+        imageName = HOME + imageName;  //prepend path to image(s)
+        Mat img = imread(imageName);  //read image from file
+        if (img.empty()) {
+            cerr << "could not read the image: " << imageName << endl;
+            return;
+        }
+        imshow("story", img);  //show the image
+        pollKey();  //required to keep in sync!
 
-    //Scene 1B
-    int xWinterKey = 261; int yWinterKey = 196;
-    int xSpringKey = 338; int ySpringKey = 195;
-    Vec3b winterKeyColor = { 0, 0, 0 }; Vec3b springKeyColor = { 0, 0, 0 };
-
-    VideoCapture cam = VideoCapture(1); //assign to the correct port
-    namedWindow("camOut");
-    setWindowProperty("camOut", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-    int image_counter = 0; //number of images from the webcam saved to the computer
-    bool returned; //boolean to check that an image was returned from the camera
-    Mat frame; //frame from the webcam
-    Mat vidFrame; //frame from when play a video
-    int decision = 0; //holds decision of the user
-    String video; //name of video to be played
-    namedWindow("story", WINDOW_NORMAL);
-    moveWindow("story", wDisplay1, 0); //position display
-    setWindowProperty("story", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
-    String imageName;
-    int threshold = 30;
-    bool selected1 = false;
-    bool selected2 = false;
-    Vec3b tmp1;
-    Vec3b tmp2;
-    Vec3b d1; Vec3b d2;
-    bool playVideo = false;
-    int currentScene = 0;
-    int difference1 = 0; //difference in colors of choice 1
-    int difference2 = 0; //difference in colors of choice 2
-    int iteration = 0; //gives user a chance to make their decision
-    Mat previousFrame;
-    
-    //list_ports(); //FOR TESTING ONLY
-
-    /*
-    * This loop acts as the main loop for detecting decisions, displaying images, and playing videos
-    */
-    while (true)
-    {
-        playVideo = false;
-        returned = cam.read(frame); //frame comes from external camera image
-        if (!returned)
-        {
-            cout << "Failed to grab frame" << endl;
+        //grab frame from camera & display it
+        if (verbose)    cout << "grabbing frames" << endl;
+        bool ret = false;
+        //MUST repeat a few times. Otherwise, it gets all out of sync (viz.,
+        // what is displayed and what is captured are not the same).
+        for (int i = 0; i < 10; i++) {
+            //cout << i << endl;
+            ret = cam.read(frame);  //grab frame from camera
+            if (!ret)    break;
+            imshow("camOut", frame);  //display camera frame
+            //check keypress (if any)
+            pollKey();  //required to keep in sync!
+        }
+        cout << "done grabbing frames" << endl;
+        if (!ret) {
+            cerr << "can't read frame from camera" << endl;
             break;
         }
-        imshow("camOut", frame);
+        imshow("camOut", frame);  //display camera frame
+        //check keypress (if any)
+        pollKey();  //required to keep in sync!
+        imageName = tmp.second->fname;
+        imageName = HOME + string("test_") + imageName;  //prepend path to image(s) plus test name
+        cout << imageName << endl;
+        imwrite(imageName, frame);
+    }
+    cout << "test complete" << endl;
+}
+//----------------------------------------------------------------------
+//once targets have been determined, use this to check them.
+static void test_scenes2(VideoCapture cam) {
+    cout << "test 2 in progress" << endl;
+    Mat frame;  //frame from the webcam
+    //for each scene ...
+    for (const auto& tmp : sc) {
+        if (verbose)    cout << "key=" << tmp.first << " val=" << *tmp.second;
+        string imageName = tmp.second->fname;
+        imageName = HOME + imageName;  //prepend path to image(s)
+        Mat img = imread(imageName);  //read image from file
+        if (img.empty()) {
+            cerr << "could not read the image: " << imageName << endl;
+            return;
+        }
+        imshow("story", img);  //show the image
+        pollKey();  //required to keep in sync!
 
-        //assign image name based on what scene we are at
-        if (currentScene == 0) { imageName = "C:/Users/jilli/images/Start_A_0001.jpg"; } //start scene
-        if (currentScene == 1) { imageName = "C:/Users/jilli/images/Scene 1A Flowers_0017.jpg"; } //scene 1A
-        if (currentScene == 2) { imageName = "C:/Users/jilli/images/Scene 1B_0015.jpg"; } //scene 1B
-        if (currentScene == 3) { imageName = "C:/Users/jilli/images/Scene 2A_0001.jpg"; } //scene 2A
-        if (currentScene == 4) { imageName = "C:/Users/jilli/images/Scene 2B_0001.jpg"; } //scene 2B
-        if (currentScene == 5) { imageName = "C:/Users/jilli/images/Scene 2C_0001.jpg"; } //scene 2C
-        if (currentScene == 6) { imageName = "C:/Users/jilli/images/Scene 2D_0001.jpg"; } //scene 2D
-        
-        //display the scene
-        Mat img = imread(imageName); //import image from file folder 
+        //grab frame from camera & display it
+        if (verbose)    cout << "grabbing frames" << endl;
+        bool ret = false;
+        //MUST repeat a few times. Otherwise, it gets all out of sync (viz.,
+        // what is displayed and what is captured are not the same).
+        for (int i = 0; i < 5; i++) {
+            //cout << i << endl;
+            ret = cam.read(frame);  //grab frame from camera
+            if (!ret)    break;
+            imshow("camOut", frame);  //display camera frame
+            //check keypress (if any)
+            pollKey();  //required to keep in sync!
+        }
+        cout << "done grabbing frames" << endl;
+        if (!ret) {
+            cerr << "can't read frame from camera" << endl;
+            break;
+        }
+        imshow("camOut", frame);  //display camera frame
+        //check keypress (if any)
+        pollKey();  //required to keep in sync!
 
-        //set height and width to cols and rows respectively
-        int hStory = img.cols;
-        int wStory = img.rows;
+        //check target data structure values against data from camera.
+        // for each scene ...
+        for (auto t : *sc[currentScene]->targets) {
+            Vec3b camRGB = frame.at<Vec3b>(Point(t->x, t->y));  //target rgb value from camera
+            //calc diffs between target and camera color values
+            int dr = t->r - camRGB[0];
+            int dg = t->g - camRGB[1];
+            int db = t->b - camRGB[2];
+            int dist = dr * dr + dg * dg + db * db;  //sum of squared diffs
+            cout << "dist**2=" << dist << endl;
+            //anything chosen?
+            if (dist >= THRESHOLD)    cout << "target threshold exceeded!" << endl;
+        }
+    }
+    cout << "test 2 complete" << endl;
+}
+//----------------------------------------------------------------------
+int main(int argc, char** argv) {
+    /*if (verbose) {
+        print_args(argc, argv);
+        list_cameras();
+        cout << "using camera: " << CAM << endl;
+    }*/
+    init_scenes();
 
-        if (img.empty())
-        {
+    namedWindow("story", WINDOW_NORMAL);
+    moveWindow("story", wDisplay1, 0);  //position display
+    setWindowProperty("story", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
+
+    //set up camera window (on primary/laptop display)
+    VideoCapture cam = VideoCapture(CAM);
+    //best to set every time (seems to remember, otherwise).
+    //cam.set(CAP_PROP_AUTOFOCUS, 0);  //turn autofocus off
+    cam.set(CAP_PROP_AUTO_EXPOSURE, 1);  //manual exposure mode
+    cam.set(CAP_PROP_EXPOSURE, -7);  //set exposure
+    cam.set(CAP_PROP_BUFFERSIZE, 2);  //does anything useful?
+
+    namedWindow("camOut");
+    setWindowProperty("camOut", WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
+
+    int image_counter = 0;  //no. of images from the webcam saved to the computer
+    Mat frame;  //frame from the webcam
+
+    bool started = false;  //wait for keypress to start processing decisions
+    bool timeToQuit = false;
+    while (!timeToQuit) {
+        //cout << "NOT STARTED YET!" << endl;
+        //display current scene
+        String imageName = sc[currentScene]->fname;
+        imageName = HOME + imageName;  //prepend path to image(s)
+        Mat img = imread(imageName);  //read image from file
+        if (img.empty()) {
             cout << "Could not read the image" << endl;
             return -1;
         }
-
-        imshow("story", img); 
+        imshow("story", img);
+        pollKey();  //required to keep in sync!
         cout << "display scene " << currentScene << endl;
-        Sleep(500);
-        
-        //CHECK FOR DECISION
-        //check to make sure you remembered to do calibration step 2
-        if (currentScene == 0 && (vector_is_empty(knobLeftColor) || vector_is_empty(knobRightColor)))
-        {
-            cout << "not calibrated" << endl;
-        }
-        else if (currentScene == 1 && (vector_is_empty(violetColor) || vector_is_empty(chrysColor)))
-        {
-            cout << "not calibrated" << endl;
-        }
-        else if (currentScene == 2 && (vector_is_empty(springKeyColor) || vector_is_empty(winterKeyColor)))
-        {
-            cout << "not calibrated" << endl;
-        }
-        else //only calculate differences if it is calibrated
-        {
-            //assign variables needed to check for color disparities
-            if (currentScene == 0)
-            {
-                tmp1 = frame.at<Vec3b>(xKnobLeft, yKnobLeft);
-                tmp2 = frame.at<Vec3b>(xKnobRight, yKnobRight);
 
-                d1[0] = abs(knobLeftColor[0] - tmp1[0]);
-                d1[1] = abs(knobLeftColor[1] - tmp1[1]);
-                d1[2] = abs(knobLeftColor[2] - tmp1[2]);
-
-                d2[0] = abs(knobRightColor[0] - tmp2[0]);
-                d2[1] = abs(knobRightColor[1] - tmp2[1]);
-                d2[2] = abs(knobRightColor[2] - tmp2[2]);
-            }
-            else if (currentScene == 1)
-            {
-                tmp1 = frame.at<Vec3b>(xViolet, yViolet);
-                tmp2 = frame.at<Vec3b>(xChrys, yChrys);
-
-                d1[0] = abs(violetColor[0] - tmp1[0]);
-                d1[1] = abs(violetColor[1] - tmp1[1]);
-                d1[2] = abs(violetColor[2] - tmp1[2]);
-
-                d2[0] = abs(chrysColor[0] - tmp2[0]);
-                d2[1] = abs(chrysColor[1] - tmp2[1]);
-                d2[2] = abs(chrysColor[2] - tmp2[2]);
-            }
-            else if (currentScene == 2)
-            {
-                tmp1 = frame.at<Vec3b>(xWinterKey, yWinterKey);
-                tmp2 = frame.at<Vec3b>(xSpringKey, ySpringKey);
-
-                d1[0] = abs(winterKeyColor[0] - tmp1[0]);
-                d1[1] = abs(winterKeyColor[1] - tmp1[1]);
-                d1[2] = abs(winterKeyColor[2] - tmp1[2]);
-
-                d2[0] = abs(springKeyColor[0] - tmp2[0]);
-                d2[1] = abs(springKeyColor[1] - tmp2[1]);
-                d2[2] = abs(springKeyColor[2] - tmp2[2]);
-            }
-            //Checking for color disparities with option 1
-            cout << "d1: " << d1 << endl;
-            cout << "d2: " << d2 << endl;
-            cout << "tmp1: " << tmp1 << "   tmp2: " << tmp2 << endl;
-
-            //multiply each element by itself individually
-            d1[0] = d1[0] * d1[0];
-            d1[1] = d1[1] * d1[1];
-            d1[2] = d1[2] * d1[2];
-
-            difference1 = d1[0] + d1[1] + d1[2]; //calculate total difference by adding RGB values together
-            //difference1 = difference1 * 1.5;
-
-            cout << "diff 1 " << difference1 << endl;
-
-            //Checking for color disparities with option 2
-            //multiply each element by itself individually
-            d2[0] = d2[0] * d2[0];
-            d2[1] = d2[1] * d2[1];
-            d2[2] = d2[2] * d2[2];
-
-            difference2 = d2[0] + d2[1] + d2[2];
-            //difference2 = difference2 * 1.5;
-
-            cout << "diff 2 " << difference2 << endl;
-
-            if (difference1 > threshold && difference1 > difference2)
-            {
-                selected1 = true;
-            }
-            if (difference2 > threshold && difference2 > difference1)
-            {
-                selected2 = true;
-            }
-
-            if (selected1 && selected2)
-            {
-                cout << "You must only choose 1 choice" << endl;
-            }
-            else if (selected1)
-            {
-                cout << "Option 1 was chosen" << endl;
-                decision = 1;
-            }
-            else if (selected2)
-            {
-                cout << "Option 2 was chosen" << endl;
-                decision = 2;
-            }
-
-            if (decision > 0) //CHANGE STRING OF VIDEO NAME HERE
-            {
-                if (currentScene == 0)
-                {
-                    if (decision == 1)
-                    {
-                        currentScene = 1;
-                        video = "C:/Users/jilli/images/Scene1A.mp4";
-                        playVideo = true;
-                    }
-                    if (decision == 2)
-                    {
-                        currentScene = 2;
-                        video = "C:/Users/jilli/images/Scene1B-1.mp4";
-                        playVideo = true;
-                    }
-                }
-                else if (currentScene == 1)
-                {
-                    if (decision == 1)
-                    {
-                        currentScene = 3;
-                        video = "Scene2A";
-                    }
-                    if (decision == 2)
-                    {
-                        currentScene = 4;
-                        video = "Scene2B";
-                    }
-                }
-                else if (currentScene == 2)
-                {
-                    if (decision == 1)
-                    {
-                        currentScene = 5;
-                        video = "Scene2C";
-                    }
-                    if (decision == 2)
-                    {
-                        currentScene = 6;
-                        video = "Scene2D";
-                    }
-                }
-            }
-
-            //reset decision variables
-            selected1 = false;
-            selected2 = false;
-            decision = 0;
-            d1 = { 0, 0, 0 };
-            d2 = { 0, 0, 0 };
-            difference1 = 0;
-            difference2 = 0;
-        }
-
-        if (playVideo == true)
-        {
-            VideoCapture cap1(video);
-            // Check if camera opened successfully
-            if (!cap1.isOpened()) {
-                cout << "Error opening video stream or file" << endl;
-                return -1;
-            }
-
-            while (true)
-            {
-                // Capture frame-by-frame
-                cap1 >> vidFrame;
-
-                // If the frame is empty, break immediately
-                if (vidFrame.empty())
-                    break;
-
-                // Display the resulting frame
-                imshow("story", vidFrame);
-                waitKey(3);
-            }
-        }
-
-        //setting up key strokes to do different actions
-        int k = waitKey(1) & 0xff;
-        if (k == 27 || k == ('q') || k == ('Q'))
-        {
-            //escape pressed
-            cout << "Escape hit, closing..." << endl;
+        //grab frame from camera & display it
+        bool returned = cam.read(frame);  //grab frame from camera
+        if (!returned) {
+            cerr << "can't read frame from camera" << endl;
             break;
         }
-        else if (k == 'c' || k == 'C')
-        {
-            //run calibration step 2 - this is here to do the calibration manually but it is automatically done in the main loop
-            if (currentScene == 0)
-            {
-                knobLeftColor = frame.at<Vec3b>(xKnobLeft, yKnobLeft);
-                knobRightColor = frame.at<Vec3b>(xKnobRight, yKnobRight);
-            }
-            else if (currentScene == 1)
-            {
-                violetColor = frame.at<Vec3b>(xViolet, yViolet);
-                chrysColor = frame.at<Vec3b>(xChrys, yChrys);
-            }
-            else if (currentScene == 2)
-            {
-                winterKeyColor = frame.at<Vec3b>(xWinterKey, yWinterKey);
-                springKeyColor = frame.at<Vec3b>(xSpringKey, ySpringKey);
-            }
-            cout << "knob left " << knobLeftColor << " and knob right " << knobRightColor << endl;
-            cout << "winter: " << winterKeyColor << " and spring: " << springKeyColor << endl;
-            cout << "violet " << violetColor << " and chrys " << chrysColor << endl;
+        imshow("camOut", frame);  //display camera frame
+        //check keypress (if any)
+        int ch = waitKey(200) & 0xFF;  //milliseconds
+        char buff[1024];
+        //handle keypress (if any)
+        switch (ch) {
+            case ' ':
+                //space is pressed - save current frame from camera view
+                sprintf_s(buff, "savedImage.%d.jpg", image_counter);
+                imwrite(buff, frame);
+                cout << "space pressed. image written to " << buff << endl;
+                image_counter++;
+                break;
+            case 27:  //esc (escape) key
+            case 'q':  case 'Q':  //quit
+            case 'e':  case 'E':  //exit
+            case 'x':  case 'X':  //ditto
+                timeToQuit = true;
+                break;
+            case 's':  case 'S':
+                started = true;
+                break;
+            case 't':  case 'T':
+                test_scenes(cam);
+                break;
+            case '2':
+                test_scenes2(cam);
+                break;
+            case 'v':  case 'V':
+                playVideo("test.mp4");  //playVideo( "Scene1A.mp4" );
+                break;
+            case -1:
+                break;  //ignore (idle; no key pressed)
+            default:
+                cout << "unrecognized key pressed: " << (char)ch << endl;
+                break;
         }
-        else if (k % 256 == 32)
-        {
-            //space is pressed - save current frme from camera view
-            string img_name = "C:/Users/jilli/images/savedImage.jpg";
-            imwrite(img_name, frame);
-            cout << "space pressed and image written" << endl;
-            image_counter++;
-        }
-    }
 
-    //avoid memory leaks at the very end
-    /*delete &knobLeftColor;
-    delete &knobRightColor;
-    delete &chrysColor;
-    delete &violetColor;
-    delete &winterKeyColor;
-    delete &springKeyColor;
-    cam.release();
-    destroyAllWindows();
-    delete& tmp1;
-    delete& tmp2;
-    delete& d1;
-    delete& d2;*/
+        //test_scenes(cam);
+        //timeToQuit = true;
+
+        //wait until started (to begin checking for decisions)
+        if (!started)    continue;
+        //determine if something was selected
+        Target* s = check_for_decision(frame);
+        if (s != nullptr) {
+            cout << "***" << *s << "***" << endl;
+            //play video
+            playVideo(s->video);  //prepend path to video(s)
+            //get the next scene
+            currentScene = s->nextSceneName;
+            if (currentScene.empty())    cerr << "can't find next scene!";
+            waitKey(500);
+        }
+    }  //end while
+
+    return 0;
 }
